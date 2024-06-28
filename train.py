@@ -128,10 +128,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             d_xyz, d_rotation, d_scaling = deform.step(
                 gaussians.get_xyz.detach(), time_input + ast_noise
             )  # we detach the gaussians to avoid backpropagation through them
-        """if iteration > 5000:
-            flag_pdb=True
-            d_norm= torch.norm(d_xyz, dim=1)
-            pdb.set_trace()"""
+        if iteration > 5000:
+            flag_pdb = True
+            pdb.set_trace()
 
         # Render
         render_pkg_re = render(
