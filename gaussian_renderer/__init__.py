@@ -11,10 +11,17 @@
 
 import torch
 import math
-from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from diff_gaussian_rasterization import (
+    GaussianRasterizationSettings,
+    GaussianRasterizer,
+)
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 from utils.rigid_utils import from_homogenous, to_homogenous
+
+import pdb as pdb
+
+import torchvision
 
 
 def quaternion_multiply(q1, q2):
@@ -29,8 +36,20 @@ def quaternion_multiply(q1, q2):
     return torch.stack((w, x, y, z), dim=-1)
 
 
-def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_xyz, d_rotation, d_scaling, is_6dof=False,
-           scaling_modifier=1.0, override_color=None):
+def render(
+    viewpoint_camera,
+    pc: GaussianModel,
+    pipe,
+    bg_color: torch.Tensor,
+    d_xyz,
+    d_rotation,
+    d_scaling,
+    is_6dof=False,
+    scaling_modifier=1.0,
+    override_color=None,
+    flag_pdb=False,
+    flag_segment=False,
+):
     """
     Render the scene.
 
@@ -38,8 +57,18 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
     """
 
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
-    screenspace_points = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
-    screenspace_points_densify = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
+    screenspace_points = (
+        torch.zeros_like(
+            pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda"
+        )
+        + 0
+    )
+    screenspace_points_densify = (
+        torch.zeros_like(
+            pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda"
+        )
+        + 0
+    )
     try:
         screenspace_points.retain_grad()
         screenspace_points_densify.retain_grad()
@@ -72,7 +101,8 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
             means3D = pc.get_xyz
         else:
             means3D = from_homogenous(
-                torch.bmm(d_xyz, to_homogenous(pc.get_xyz).unsqueeze(-1)).squeeze(-1))
+                torch.bmm(d_xyz, to_homogenous(pc.get_xyz).unsqueeze(-1)).squeeze(-1)
+            )
     else:
         means3D = pc.get_xyz + d_xyz
     opacity = pc.get_opacity
@@ -94,8 +124,12 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
     colors_precomp = None
     if colors_precomp is None:
         if pipe.convert_SHs_python:
-            shs_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree + 1) ** 2)
-            dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+            shs_view = pc.get_features.transpose(1, 2).view(
+                -1, 3, (pc.max_sh_degree + 1) ** 2
+            )
+            dir_pp = pc.get_xyz - viewpoint_camera.camera_center.repeat(
+                pc.get_features.shape[0], 1
+            )
             dir_pp_normalized = dir_pp / dir_pp.norm(dim=1, keepdim=True)
             sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
             colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
@@ -104,23 +138,68 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
     else:
         colors_precomp = override_color
 
+    if flag_pdb:
+        pdb.set_trace()
+
+    if flag_segment:
+        d_norm = torch.norm(d_xyz, dim=1)
+        # get indices of the gaussians that are have associated d_norm in the top 10% of the values
+        indices = torch.argsort(d_norm, descending=True)[: int(0.1 * len(d_norm))]
+
+        # create rendered image with only those gaussians that are in the top 10% of the d_norm values
+        rendered_image_moving, _, _ = rasterizer(
+            means3D=means3D[indices],  # (N, 3)
+            means2D=screenspace_points[indices],  # (N, 3)
+            means2D_densify=screenspace_points_densify[indices],  # (N, 3)
+            shs=shs[indices],  # (N, 16, 3)
+            colors_precomp=colors_precomp,
+            opacities=opacity[indices],  # (N, 1)
+            scales=scales[indices],  # (N, 3)
+            rotations=rotations[indices],  # (N, 4)
+            cov3D_precomp=cov3D_precomp,
+        )
+
+        # modify the colors of the gaussians with the indices, to make them red
+        shs[indices] = (
+            torch.tensor([[[1, 0, 0]]]).repeat(len(indices), 1, 1).float().cuda()
+        )
+
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     rendered_image, radii, depth = rasterizer(
-        means3D=means3D,
-        means2D=screenspace_points,
-        means2D_densify=screenspace_points_densify,
-        shs=shs,
+        means3D=means3D,  # (N, 3)
+        means2D=screenspace_points,  # (N, 3)
+        means2D_densify=screenspace_points_densify,  # (N, 3)
+        shs=shs,  # (N, 16, 3)
         colors_precomp=colors_precomp,
-        opacities=opacity,
-        scales=scales,
-        rotations=rotations,
-        cov3D_precomp=cov3D_precomp)
+        opacities=opacity,  # (N, 1)
+        scales=scales,  # (N, 3)
+        rotations=rotations,  # (N, 4)
+        cov3D_precomp=cov3D_precomp,
+    )
 
-    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
-    # They will be excluded from value updates used in the splitting criteria.
-    return {"render": rendered_image,
+    if flag_pdb:
+        pdb.set_trace()
+        # torchvision.utils.save_image(rendered_image, "output_image.png")
+        # torchvision.utils.save_image(rendered_image_moving, "output_image_moving.png")
+
+    if flag_segment:
+        return {
+            "render": rendered_image,
             "viewspace_points": screenspace_points,
             "viewspace_points_densify": screenspace_points_densify,
             "visibility_filter": radii > 0,
             "radii": radii,
-            "depth": depth}
+            "depth": depth,
+            "render_moving": rendered_image_moving,
+        }
+
+    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
+    # They will be excluded from value updates used in the splitting criteria.
+    return {
+        "render": rendered_image,
+        "viewspace_points": screenspace_points,
+        "viewspace_points_densify": screenspace_points_densify,
+        "visibility_filter": radii > 0,
+        "radii": radii,
+        "depth": depth,
+    }
