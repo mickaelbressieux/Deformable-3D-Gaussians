@@ -73,6 +73,7 @@ def render(
     flag_pdb=False,
     flag_segment=False,
     name_iter=None,
+    name_view = None,
     root=".",
 ):
     """
@@ -175,6 +176,7 @@ def render(
 
         # get indices of the gaussians that are have associated d_norm in the top 10% of the values
         indices = torch.argsort(d_norm, descending=True)[: int(0.1 * len(d_norm))]
+        other_indices = torch.argsort(d_norm, descending=True)[int(0.1 * len(d_norm)) :]
 
         # create rendered image with only those gaussians that are in the top 10% of the d_norm values
         rendered_image_moving, _, _ = rasterizer(
@@ -189,18 +191,20 @@ def render(
             cov3D_precomp=cov3D_precomp,
         )
 
-        # find extremes positions of the gaussians, in all 3 dimensions
-        min_x = torch.min(means3D[:, 0])
-        max_x = torch.max(means3D[:, 0])
-        min_y = torch.min(means3D[:, 1])
-        max_y = torch.max(means3D[:, 1])
-        min_z = torch.min(means3D[:, 2])
-        max_z = torch.max(means3D[:, 2])
-
-        # modify the colors of the gaussians with the indices, to make them red
-        shs[indices] = (
-            torch.tensor([[[1, 0, 0]]]).repeat(len(indices), 1, 1).float().cuda()
+        rendered_image_static, _, _ = rasterizer(
+            means3D=means3D[other_indices],  # (N, 3)
+            means2D=screenspace_points[other_indices],  # (N, 3)
+            means2D_densify=screenspace_points_densify[other_indices],  # (N, 3)
+            shs=shs[other_indices],  # (N, 16, 3)
+            colors_precomp=colors_precomp,
+            opacities=opacity[other_indices],  # (N, 1)
+            scales=scales[other_indices],  # (N, 3)
+            rotations=rotations[other_indices],  # (N, 4)
+            cov3D_precomp=cov3D_precomp,
         )
+
+        
+        
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     rendered_image, radii, depth = rasterizer(
@@ -221,6 +225,13 @@ def render(
     # torchvision.utils.save_image(rendered_image_moving, "output_image_moving.png")
 
     if flag_segment:
+        #pdb.set_trace()
+        # if rendering folder does not exist, create it
+        if not os.path.exists(root + "/rendering"):
+            os.makedirs(root + "/rendering")
+
+        torchvision.utils.save_image( rendered_image_moving, root + "/rendering/" + name_view.zfill(4) + "_moving_" + name_iter + ".png" )
+        torchvision.utils.save_image(rendered_image_static, root + "/rendering/" + name_view.zfill(4) + "_static_" + name_iter + ".png")
         return {
             "render": rendered_image,
             "viewspace_points": screenspace_points,
@@ -230,6 +241,10 @@ def render(
             "depth": depth,
             "render_moving": rendered_image_moving,
         }
+
+
+    
+
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
     # They will be excluded from value updates used in the splitting criteria.

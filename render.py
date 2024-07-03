@@ -141,6 +141,9 @@ def segment_dynamic_gaussian(
             d_scaling,
             is_6dof,
             flag_segment=flag_segment,
+            root=args.model_path,
+            name_iter=str(iteration),
+            name_view=str(idx),
         )
         rendering = results["render"]
         depth = results["depth"]
