@@ -1,0 +1,2 @@
+/var/spool/slurm/slurmd/state/job1045058/slurm_script: line 8: workon: command not found
+slurmstepd: error: *** JOB 1045058 ON eu-lo-s4-077 CANCELLED AT 2024-07-03T11:17:13 ***
