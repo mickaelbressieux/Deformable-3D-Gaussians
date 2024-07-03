@@ -180,8 +180,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
+
+        # New loss term to keep d_xyz close to zero using L1 loss
+        Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
+
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (
-            1.0 - ssim(image, gt_image)
+            1.0 - ssim(image, gt_image) + opt.lambda_dxyz * Ldxyz
         )
         loss.backward()
 
