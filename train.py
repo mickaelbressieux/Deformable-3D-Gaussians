@@ -13,7 +13,7 @@ import os
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim, kl_divergence
-from gaussian_renderer import render, network_gui
+from gaussian_renderer import render, network_gui, save_npy
 import sys
 from scene import Scene, GaussianModel, DeformModel
 from utils.general_utils import safe_state, get_linear_noise_func
@@ -57,6 +57,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
     smooth_term = get_linear_noise_func(
         lr_init=0.1, lr_final=1e-15, lr_delay_mult=0.01, max_steps=20000
     )
+
+    # remove any file starting with fid, d_xyz or means3D and ending with .npy
+    os.system("rm " + args.model_path + "/fid*.npy")
+    os.system("rm " + args.model_path + "/d_xyz*.npy")
+    os.system("rm " + args.model_path + "/means3D*.npy")
+
+    name_iter = None
+
     for iteration in range(1, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -128,9 +136,22 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             d_xyz, d_rotation, d_scaling = deform.step(
                 gaussians.get_xyz.detach(), time_input + ast_noise
             )  # we detach the gaussians to avoid backpropagation through them
-        if iteration > 5000:
-            flag_pdb = True
-            pdb.set_trace()
+
+        # set the flag to true to trigger pdb if iteration is 5000, 10000 or 20000:
+        if iteration in [3501, 5001, 10001, 19001]:
+            count = 0
+            name_iter = iteration
+
+        flag_segment = False
+
+        if "count" in locals():
+            count += 1
+            if count < opt.densification_interval:
+                name = "fid_" + str(name_iter) + ".npy"
+                save_npy(fid, name, root=args.model_path)
+                flag_pdb = True
+                flag_segment = True
+                # pdb.set_trace()
 
         # Render
         render_pkg_re = render(
@@ -143,7 +164,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             d_scaling,
             dataset.is_6dof,
             flag_pdb=flag_pdb,
+            flag_segment=flag_segment,
+            name_iter=str(name_iter),
+            root=args.model_path,
         )
+        flag_pdb = False
         image, viewspace_point_tensor, visibility_filter, radii = (
             render_pkg_re["render"],
             render_pkg_re["viewspace_points"],
