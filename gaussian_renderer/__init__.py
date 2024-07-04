@@ -181,6 +181,12 @@ def render(
                 int(0.1 * len(d_norm)) :
             ]
 
+            # pdb.set_trace()
+
+            # create a tensor of size (N, 3) with colors. The color is red for the highest d_norm value and blue for the lowest d_norm value
+            # The rest is linearly interpolated wrt the d_norm values
+            # colors = torch.zeros((len(d_norm), 3), device="cuda")
+
             # create rendered image with only those gaussians that are in the top 10% of the d_norm values
             rendered_image_moving, _, _ = rasterizer(
                 means3D=means3D[indices],  # (N, 3)
