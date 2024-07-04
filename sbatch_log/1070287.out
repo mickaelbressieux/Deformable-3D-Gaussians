@@ -1,0 +1,10 @@
+/var/spool/slurm/slurmd/state/job1070287/slurm_script: line 8: workon: command not found
+Looking for config file in /cluster/project/hilliges/mbressieux/log/cup_novel_plate/cfg_args
+Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/render.py", line 574, in <module>
+    args = get_combined_args(parser)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/arguments/__init__.py", line 110, in get_combined_args
+    with open(cfgfilepath) as cfg_file:
+         ^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/cluster/project/hilliges/mbressieux/log/cup_novel_plate/cfg_args'

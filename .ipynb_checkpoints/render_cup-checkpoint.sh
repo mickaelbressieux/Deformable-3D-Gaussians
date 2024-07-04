@@ -7,6 +7,6 @@
 #SBATCH  --mem-per-cpu=10000
 workon Def3DGS
 
-LOG=/cluster/project/hilliges/mbressieux/log/plate_novel_view
+LOG=/cluster/project/hilliges/mbressieux/log/cup_novel_view
 
-python render.py -m ${LOG} --mode segment
+python render.py -m ${LOG} --mode render

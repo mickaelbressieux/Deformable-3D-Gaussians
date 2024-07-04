@@ -112,9 +112,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         total_frame = len(viewpoint_stack)
         time_interval = 1 / total_frame
 
-        viewpoint_cam = viewpoint_stack.pop(
-            randint(0, len(viewpoint_stack) - 1)
-        )  # Randomly select a camera
+        rdm_idx = randint(0, len(viewpoint_stack) - 1)
+        viewpoint_cam = viewpoint_stack.pop(rdm_idx)  # Randomly select a camera
         if dataset.load2gpu_on_the_fly:
             viewpoint_cam.load2device()
         fid = viewpoint_cam.fid  # Frame ID
@@ -137,7 +136,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 gaussians.get_xyz.detach(), time_input + ast_noise
             )  # we detach the gaussians to avoid backpropagation through them
 
-        # set the flag to true to trigger pdb if iteration is 5000, 10000 or 20000:
+        # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
         if iteration in [3501, 5001, 10001, 19001]:
             count = 0
             name_iter = iteration
@@ -145,13 +144,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         flag_segment = False
 
         if "count" in locals():
-            count += 1
             if count < opt.densification_interval:
                 name = "fid_" + str(name_iter) + ".npy"
                 save_npy(fid, name, root=args.model_path)
                 flag_pdb = True
                 flag_segment = True
                 # pdb.set_trace()
+            count += 1
 
         # Render
         render_pkg_re = render(
@@ -166,6 +165,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             flag_pdb=flag_pdb,
             flag_segment=flag_segment,
             name_iter=str(name_iter),
+            name_view=str(rdm_idx),
             root=args.model_path,
         )
         flag_pdb = False
@@ -181,12 +181,18 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
 
-        # New loss term to keep d_xyz close to zero using L1 loss
-        Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
+        if iteration < opt.warm_up:
+            loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (  # Ldxyz
+                1.0 - ssim(image, gt_image)
+            )
+        else:
+            # New loss term to keep d_xyz close to zero using L1 loss
+            Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
 
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (
-            1.0 - ssim(image, gt_image) + opt.lambda_dxyz * Ldxyz
-        )
+            loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (
+                1.0 - ssim(image, gt_image) + opt.lambda_dxyz * Ldxyz
+            )
+
         loss.backward()
 
         iter_end.record()

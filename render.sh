@@ -10,5 +10,5 @@ workon Def3DGS
 DATA_DIR=/cluster/project/hilliges/mbressieux/data/chickchicken
 LOG=/cluster/project/hilliges/mbressieux/log/chickchicken
 
-python render.py -m ${LOG} --mode render
+python render.py -m ${LOG} --mode segment
 python metrics.py -m ${LOG}

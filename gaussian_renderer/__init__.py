@@ -73,7 +73,7 @@ def render(
     flag_pdb=False,
     flag_segment=False,
     name_iter=None,
-    name_view = None,
+    name_view=None,
     root=".",
 ):
     """
@@ -169,42 +169,42 @@ def render(
         flag_segment = True
 
     if flag_segment:
-        d_norm = torch.norm(d_xyz, dim=1)
+        with torch.no_grad():
+            d_norm = torch.norm(d_xyz, dim=1)
 
-        save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
-        save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
+            save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
+            save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
 
-        # get indices of the gaussians that are have associated d_norm in the top 10% of the values
-        indices = torch.argsort(d_norm, descending=True)[: int(0.1 * len(d_norm))]
-        other_indices = torch.argsort(d_norm, descending=True)[int(0.1 * len(d_norm)) :]
+            # get indices of the gaussians that are have associated d_norm in the top 10% of the values
+            indices = torch.argsort(d_norm, descending=True)[: int(0.1 * len(d_norm))]
+            other_indices = torch.argsort(d_norm, descending=True)[
+                int(0.1 * len(d_norm)) :
+            ]
 
-        # create rendered image with only those gaussians that are in the top 10% of the d_norm values
-        rendered_image_moving, _, _ = rasterizer(
-            means3D=means3D[indices],  # (N, 3)
-            means2D=screenspace_points[indices],  # (N, 3)
-            means2D_densify=screenspace_points_densify[indices],  # (N, 3)
-            shs=shs[indices],  # (N, 16, 3)
-            colors_precomp=colors_precomp,
-            opacities=opacity[indices],  # (N, 1)
-            scales=scales[indices],  # (N, 3)
-            rotations=rotations[indices],  # (N, 4)
-            cov3D_precomp=cov3D_precomp,
-        )
+            # create rendered image with only those gaussians that are in the top 10% of the d_norm values
+            rendered_image_moving, _, _ = rasterizer(
+                means3D=means3D[indices],  # (N, 3)
+                means2D=screenspace_points[indices],  # (N, 3)
+                means2D_densify=screenspace_points_densify[indices],  # (N, 3)
+                shs=shs[indices],  # (N, 16, 3)
+                colors_precomp=colors_precomp,
+                opacities=opacity[indices],  # (N, 1)
+                scales=scales[indices],  # (N, 3)
+                rotations=rotations[indices],  # (N, 4)
+                cov3D_precomp=cov3D_precomp,
+            )
 
-        rendered_image_static, _, _ = rasterizer(
-            means3D=means3D[other_indices],  # (N, 3)
-            means2D=screenspace_points[other_indices],  # (N, 3)
-            means2D_densify=screenspace_points_densify[other_indices],  # (N, 3)
-            shs=shs[other_indices],  # (N, 16, 3)
-            colors_precomp=colors_precomp,
-            opacities=opacity[other_indices],  # (N, 1)
-            scales=scales[other_indices],  # (N, 3)
-            rotations=rotations[other_indices],  # (N, 4)
-            cov3D_precomp=cov3D_precomp,
-        )
-
-        
-        
+            rendered_image_static, _, _ = rasterizer(
+                means3D=means3D[other_indices],  # (N, 3)
+                means2D=screenspace_points[other_indices],  # (N, 3)
+                means2D_densify=screenspace_points_densify[other_indices],  # (N, 3)
+                shs=shs[other_indices],  # (N, 16, 3)
+                colors_precomp=colors_precomp,
+                opacities=opacity[other_indices],  # (N, 1)
+                scales=scales[other_indices],  # (N, 3)
+                rotations=rotations[other_indices],  # (N, 4)
+                cov3D_precomp=cov3D_precomp,
+            )
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     rendered_image, radii, depth = rasterizer(
@@ -225,26 +225,34 @@ def render(
     # torchvision.utils.save_image(rendered_image_moving, "output_image_moving.png")
 
     if flag_segment:
-        #pdb.set_trace()
-        # if rendering folder does not exist, create it
-        if not os.path.exists(root + "/rendering"):
-            os.makedirs(root + "/rendering")
+        with torch.no_grad():
+            # pdb.set_trace()
+            # if rendering folder does not exist, create it
+            if not os.path.exists(root + "/rendering"):
+                os.makedirs(root + "/rendering")
 
-        torchvision.utils.save_image( rendered_image_moving, root + "/rendering/" + name_view.zfill(4) + "_moving_" + name_iter + ".png" )
-        torchvision.utils.save_image(rendered_image_static, root + "/rendering/" + name_view.zfill(4) + "_static_" + name_iter + ".png")
-        return {
-            "render": rendered_image,
-            "viewspace_points": screenspace_points,
-            "viewspace_points_densify": screenspace_points_densify,
-            "visibility_filter": radii > 0,
-            "radii": radii,
-            "depth": depth,
-            "render_moving": rendered_image_moving,
-        }
+            if not os.path.exists(root + "/rendering/" + name_iter):
+                os.makedirs(root + "/rendering/" + name_iter)
 
-
-    
-
+            # save the rendered images
+            torchvision.utils.save_image(
+                rendered_image_moving,
+                root
+                + "/rendering/"
+                + name_iter
+                + "/"
+                + name_view.zfill(4)
+                + "_moving.png",
+            )
+            torchvision.utils.save_image(
+                rendered_image_static,
+                root
+                + "/rendering/"
+                + name_iter
+                + "/"
+                + name_view.zfill(4)
+                + "_static.png",
+            )
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
     # They will be excluded from value updates used in the splitting criteria.

@@ -1,0 +1,18 @@
+/var/spool/slurm/slurmd/state/job1118065/slurm_script: line 8: workon: command not found
+Optimizing /cluster/project/hilliges/mbressieux/log/cup_novel_view
+Output folder: /cluster/project/hilliges/mbressieux/log/cup_novel_view [04/07 12:45:44]
+Tensorboard not available: not logging progress [04/07 12:45:44]
+Found dataset.json file, assuming Nerfies data set! [04/07 12:45:45]
+Reading Nerfies Info [04/07 12:45:45]
+ [04/07 12:45:54]
+Loading Training Cameras [04/07 12:45:54]
+Loading Test Cameras [04/07 12:45:56]
+Number of points at initialisation :  50290 [04/07 12:45:56]
+Training progress:   0%|          | 0/20000 [00:00<?, ?it/s]Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/train.py", line 448, in <module>
+    training(
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/train.py", line 186, in training
+    Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
+                       ^^^^^^^^^^^^^^^^
+TypeError: abs(): argument 'input' (position 1) must be Tensor, not float
+Training progress:   0%|          | 0/20000 [00:00<?, ?it/s]

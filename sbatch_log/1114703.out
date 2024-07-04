@@ -1,0 +1,9 @@
+/var/spool/slurm/slurmd/state/job1114703/slurm_script: line 8: workon: command not found
+Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/render.py", line 13, in <module>
+    from scene import Scene, DeformModel
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/scene/__init__.py", line 16, in <module>
+    from scene.dataset_readers import sceneLoadTypeCallbacks
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/scene/dataset_readers.py", line 25, in <module>
+    from plyfile import PlyData, PlyElement
+ModuleNotFoundError: No module named 'plyfile'
