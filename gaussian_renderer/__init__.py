@@ -180,12 +180,24 @@ def render(
             other_indices = torch.argsort(d_norm, descending=True)[
                 int(0.1 * len(d_norm)) :
             ]
+            d_norm = d_norm[torch.cat((indices, other_indices))]
 
-            # pdb.set_trace()
+            #pdb.set_trace()
 
             # create a tensor of size (N, 3) with colors. The color is red for the highest d_norm value and blue for the lowest d_norm value
             # The rest is linearly interpolated wrt the d_norm values
-            # colors = torch.zeros((len(d_norm), 3), device="cuda")
+            colors = torch.zeros((len(d_norm), 3), device="cuda")
+            colors[:] = torch.tensor([1, 0, 0], device="cuda")
+            colors[:, 0] = (d_norm - d_norm.min()) / (d_norm.max() - d_norm.min())
+            colors[:, 2] = 1 - colors[:, 0]
+
+            shs_heatmap=colors.unsqueeze(1).repeat(1, 16, 1)
+
+            #pdb.set_trace()
+
+            # create an opacity_heatmap matrix with the same size as the opacity matrix and full of its max value
+            opacity_heatmap = torch.full_like(opacity, 1.0)
+
 
             # create rendered image with only those gaussians that are in the top 10% of the d_norm values
             rendered_image_moving, _, _ = rasterizer(
@@ -200,15 +212,16 @@ def render(
                 cov3D_precomp=cov3D_precomp,
             )
 
-            rendered_image_static, _, _ = rasterizer(
-                means3D=means3D[other_indices],  # (N, 3)
-                means2D=screenspace_points[other_indices],  # (N, 3)
-                means2D_densify=screenspace_points_densify[other_indices],  # (N, 3)
-                shs=shs[other_indices],  # (N, 16, 3)
+            # create rendered "heatmap" image with all the gaussians, colored wrt the d_norm values
+            rendered_heatmap,_,_ = rasterizer(
+                means3D=means3D,  # (N, 3)
+                means2D=screenspace_points,  # (N, 3)
+                means2D_densify=screenspace_points_densify,  # (N, 3)
+                shs=shs_heatmap,  # (N, 16, 3)
                 colors_precomp=colors_precomp,
-                opacities=opacity[other_indices],  # (N, 1)
-                scales=scales[other_indices],  # (N, 3)
-                rotations=rotations[other_indices],  # (N, 4)
+                opacities=opacity_heatmap,  # (N, 1)
+                scales=scales,  # (N, 3)
+                rotations=rotations,  # (N, 4)
                 cov3D_precomp=cov3D_precomp,
             )
 
@@ -251,13 +264,22 @@ def render(
                 + "_moving.png",
             )
             torchvision.utils.save_image(
-                rendered_image_static,
+                rendered_heatmap,
                 root
                 + "/rendering/"
                 + name_iter
                 + "/"
                 + name_view.zfill(4)
-                + "_static.png",
+                + "_heatmap.png",
+            )
+            torchvision.utils.save_image(
+                rendered_image,
+                root
+                + "/rendering/"
+                + name_iter
+                + "/"
+                + name_view.zfill(4)
+                + "_full.png",
             )
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.

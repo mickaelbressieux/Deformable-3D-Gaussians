@@ -137,7 +137,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )  # we detach the gaussians to avoid backpropagation through them
 
         # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
-        if iteration in [3501, 5001, 10001, 19001]:
+        if iteration in [3001, 5001, 10001, 19001]:
             count = 0
             name_iter = iteration
 
