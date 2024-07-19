@@ -38,6 +38,24 @@ def quaternion_multiply(q1, q2):
 
     return torch.stack((w, x, y, z), dim=-1)
 
+def quaternion_multiply_batched(q1, q2):
+    # Assuming q1 has shape (4,) and q2 has shape (N, 4)
+    # Expand q1 to match the batch dimension of q2
+    q1 = q1.unsqueeze(0).expand_as(q2)
+    
+    # Extract components
+    w1, x1, y1, z1 = q1.unbind(-1)
+    w2, x2, y2, z2 = q2.unbind(-1)
+    
+    # Compute quaternion multiplication components
+    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+    y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
+    z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
+    
+    # Combine the results back into a single tensor
+    return torch.stack([w, x, y, z], dim=-1)
+
 
 def save_npy(data, name, root="."):
     # data is a tensor. example of shape: torch.Size([1000, 3])
@@ -165,7 +183,6 @@ def render(
         colors_precomp = override_color
 
     if flag_pdb:
-        # pdb.set_trace()
         flag_segment = True
 
     if flag_segment:
@@ -182,7 +199,6 @@ def render(
             ]
             d_norm = d_norm[torch.cat((indices, other_indices))]
 
-            #pdb.set_trace()
 
             # create a tensor of size (N, 3) with colors. The color is red for the highest d_norm value and blue for the lowest d_norm value
             # The rest is linearly interpolated wrt the d_norm values
@@ -193,7 +209,6 @@ def render(
 
             shs_heatmap=colors.unsqueeze(1).repeat(1, 16, 1)
 
-            #pdb.set_trace()
 
             # create an opacity_heatmap matrix with the same size as the opacity matrix and full of its max value
             opacity_heatmap = torch.full_like(opacity, 1.0)
@@ -238,14 +253,8 @@ def render(
         cov3D_precomp=cov3D_precomp,
     )
 
-    # if flag_pdb:
-    # pdb.set_trace()
-    # torchvision.utils.save_image(rendered_image, "output_image.png")
-    # torchvision.utils.save_image(rendered_image_moving, "output_image_moving.png")
-
     if flag_segment:
         with torch.no_grad():
-            # pdb.set_trace()
             # if rendering folder does not exist, create it
             if not os.path.exists(root + "/rendering"):
                 os.makedirs(root + "/rendering")
@@ -291,4 +300,5 @@ def render(
         "visibility_filter": radii > 0,
         "radii": radii,
         "depth": depth,
+        "means3D": means3D,
     }

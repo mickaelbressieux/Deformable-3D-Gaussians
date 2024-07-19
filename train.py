@@ -149,8 +149,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 save_npy(fid, name, root=args.model_path)
                 flag_pdb = True
                 flag_segment = True
-                # pdb.set_trace()
+
             count += 1
+
 
         # Render
         render_pkg_re = render(
