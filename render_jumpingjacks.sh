@@ -7,6 +7,6 @@
 #SBATCH  --mem-per-cpu=10000
 workon Def3DGS
 
-LOG=/cluster/project/hilliges/mbressieux/log/plate_novel_view
+LOG=/cluster/project/hilliges/mbressieux/log/Def3DGS/jumpingjacks
 
-python render.py -m ${LOG} --mode new_canonical --skip_test
+python render.py -m ${LOG} --mode new_canonical

@@ -38,21 +38,22 @@ def quaternion_multiply(q1, q2):
 
     return torch.stack((w, x, y, z), dim=-1)
 
+
 def quaternion_multiply_batched(q1, q2):
     # Assuming q1 has shape (4,) and q2 has shape (N, 4)
     # Expand q1 to match the batch dimension of q2
     q1 = q1.unsqueeze(0).expand_as(q2)
-    
+
     # Extract components
     w1, x1, y1, z1 = q1.unbind(-1)
     w2, x2, y2, z2 = q2.unbind(-1)
-    
+
     # Compute quaternion multiplication components
     w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
     x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
     y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
     z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
-    
+
     # Combine the results back into a single tensor
     return torch.stack([w, x, y, z], dim=-1)
 
@@ -199,7 +200,6 @@ def render(
             ]
             d_norm = d_norm[torch.cat((indices, other_indices))]
 
-
             # create a tensor of size (N, 3) with colors. The color is red for the highest d_norm value and blue for the lowest d_norm value
             # The rest is linearly interpolated wrt the d_norm values
             colors = torch.zeros((len(d_norm), 3), device="cuda")
@@ -207,12 +207,10 @@ def render(
             colors[:, 0] = (d_norm - d_norm.min()) / (d_norm.max() - d_norm.min())
             colors[:, 2] = 1 - colors[:, 0]
 
-            shs_heatmap=colors.unsqueeze(1).repeat(1, 16, 1)
-
+            shs_heatmap = colors.unsqueeze(1).repeat(1, 16, 1)
 
             # create an opacity_heatmap matrix with the same size as the opacity matrix and full of its max value
             opacity_heatmap = torch.full_like(opacity, 1.0)
-
 
             # create rendered image with only those gaussians that are in the top 10% of the d_norm values
             rendered_image_moving, _, _ = rasterizer(
@@ -228,7 +226,7 @@ def render(
             )
 
             # create rendered "heatmap" image with all the gaussians, colored wrt the d_norm values
-            rendered_heatmap,_,_ = rasterizer(
+            rendered_heatmap, _, _ = rasterizer(
                 means3D=means3D,  # (N, 3)
                 means2D=screenspace_points,  # (N, 3)
                 means2D_densify=screenspace_points_densify,  # (N, 3)
@@ -301,4 +299,6 @@ def render(
         "radii": radii,
         "depth": depth,
         "means3D": means3D,
+        "scaling": scales,
+        "rotation": rotations,
     }

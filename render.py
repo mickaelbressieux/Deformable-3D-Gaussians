@@ -29,9 +29,10 @@ import pdb as pdb
 
 from gaussian_renderer import quaternion_multiply, quaternion_multiply_batched
 
+
 def matrix_to_quaternion(R):
     # Assuming R is a 3x3 rotation matrix
-    q = np.empty((4, ), dtype=np.float32)
+    q = np.empty((4,), dtype=np.float32)
     t = np.trace(R)
     if t > 0.0:
         t = np.sqrt(t + 1.0)
@@ -51,7 +52,6 @@ def matrix_to_quaternion(R):
         q[j + 1] = (R[j, i] + R[i, j]) * t
         q[k + 1] = (R[k, i] + R[i, k]) * t
     return torch.from_numpy(q)
-
 
 
 def render_set(
@@ -124,6 +124,7 @@ def render_set(
     fps = 1.0 / t.mean()
     print(f"Test FPS: \033[1;35m{fps:.5f}\033[0m, Num. of GS: {xyz.shape[0]}")
 
+
 def one_camera_render(
     model_path,
     load2gpu_on_the_fly,
@@ -141,7 +142,7 @@ def one_camera_render(
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
     depth_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depth")
-    moving_path= os.path.join(model_path, name, "ours_{}".format(iteration), "dynamic")
+    moving_path = os.path.join(model_path, name, "ours_{}".format(iteration), "dynamic")
 
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
@@ -150,17 +151,17 @@ def one_camera_render(
 
     t_list = []
 
-    
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        
+
         if load2gpu_on_the_fly:
             view.load2device()
 
         fid = view.fid
         xyz = gaussians.get_xyz
+        view = views[0]  # replace all the views with the first view
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
-        #flag_segment = (idx % 100 == 0)
+        # flag_segment = (idx % 100 == 0)
         flag_segment = False
 
         if idx == 0:
@@ -186,7 +187,6 @@ def one_camera_render(
                 rendering,
                 os.path.join(render_path, "canonical.png"),
             )
-        
 
         results = render(
             view,
@@ -218,37 +218,163 @@ def one_camera_render(
             depth, os.path.join(depth_path, "{0:05d}".format(idx) + ".png")
         )
 
-        
-        
-
         if idx % 100 == 0:
-            
+
             # project the 3D points from world space to camera space
             means3D = results["means3D"]
             # 3D points in world space
             xyz = gaussians.get_xyz
-            Rt=torch.from_numpy(view.R).transpose(0,1).to(device="cuda").float()
-            Tt=torch.from_numpy(view.T).unsqueeze(1).transpose(0,1).to(device="cuda").float()
+            Rt = torch.from_numpy(view.R).transpose(0, 1).to(device="cuda").float()
+            Tt = (
+                torch.from_numpy(view.T)
+                .unsqueeze(1)
+                .transpose(0, 1)
+                .to(device="cuda")
+                .float()
+            )
             # 3D points in camera space
             xyz_cam = torch.matmul(xyz, Rt) + Tt
             # 3D points displaced in camera space
-            means3D_cam = torch.matmul(means3D,Rt) + Tt
+            means3D_cam = torch.matmul(means3D, Rt) + Tt
             # displacement of the 3D points in camera space
-            d_xyz_cam = torch.matmul(d_xyz,Rt)
+            d_xyz_cam = torch.matmul(d_xyz, Rt)
             # rotation of the 3D points in camera space
             R_quat = matrix_to_quaternion(view.R).to(device="cuda")
             d_rotation_cam = quaternion_multiply_batched(R_quat, d_rotation)
             # save d_xyz_cam, fid and means3D_cam to npy files
 
-            root=args.model_path
+            root = args.model_path
             name_idx = str(idx).zfill(5)
 
-            np.save(os.path.join(root, "d_xyz_cam_{}.npy".format(name_idx)), d_xyz_cam.cpu().numpy())
-            np.save(os.path.join(root, "means3D_cam_{}.npy".format(name_idx)), means3D_cam.cpu().numpy())
-            np.save(os.path.join(root, "fid_cam_{}.npy".format(name_idx)), fid.cpu().numpy())
-        
-        
-        
+            np.save(
+                os.path.join(root, "d_xyz_cam_{}.npy".format(name_idx)),
+                d_xyz_cam.cpu().numpy(),
+            )
+            np.save(
+                os.path.join(root, "means3D_cam_{}.npy".format(name_idx)),
+                means3D_cam.cpu().numpy(),
+            )
+            np.save(
+                os.path.join(root, "fid_cam_{}.npy".format(name_idx)), fid.cpu().numpy()
+            )
+
+
+def new_canonical_space(
+    model_path,
+    load2gpu_on_the_fly,
+    is_6dof,
+    name,
+    iteration,
+    views,
+    gaussians,
+    pipeline,
+    background,
+    deform,
+):
+    # render one view (the first one) and outputs the 3D points in camera space and the displacement of the 3D points in camera space
+
+    render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
+    gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
+    depth_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depth")
+    moving_path = os.path.join(model_path, name, "ours_{}".format(iteration), "dynamic")
+
+    makedirs(render_path, exist_ok=True)
+    makedirs(gts_path, exist_ok=True)
+    makedirs(depth_path, exist_ok=True)
+    makedirs(moving_path, exist_ok=True)
+
+    t_list = []
+
+    new_d_xyz = []
+    new_d_rotation = []
+    new_d_scaling = []
+
+    for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
+
+        if load2gpu_on_the_fly:
+            view.load2device()
+
+        fid = view.fid
+        xyz = gaussians.get_xyz
+        time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
+
+        d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
+
+        # flag_segment = (idx % 100 == 0)
+        flag_segment = False
+
+        results = render(
+            view,
+            gaussians,
+            pipeline,
+            background,
+            d_xyz,
+            d_rotation,
+            d_scaling,
+            is_6dof,
+            flag_segment=flag_segment,
+            root=args.model_path,
+            name_iter=str(iteration),
+            name_view=str(idx),
+        )
+
+        if fid == 0:
+            # create the canonical space at first time step
+            can_means3D = results["means3D"]
+            can_xyz = gaussians.get_xyz  # for debugging
+            can_rotation = results["rotation"]
+            can_scaling = results["scaling"]
+
+            can_d_xyz = d_xyz.cpu().numpy()
+            can_d_rotation = d_rotation.cpu().numpy()
+            can_d_scaling = d_scaling.cpu().numpy()
+
+            new_d_xyz.append(np.zeros_like(can_d_xyz))
+            new_d_rotation.append(np.zeros_like(can_d_rotation))
+            new_d_scaling.append(np.zeros_like(can_d_scaling))
+
+        else:
+            # compute the displacement in canonical space
+            # pdb.set_trace()
+            new_d_xyz.append(d_xyz.cpu().numpy() - can_d_xyz)
+            new_d_rotation.append(d_rotation.cpu().numpy() - can_d_rotation)
+            new_d_scaling.append(d_scaling.cpu().numpy() - can_d_scaling)
+
+        rendering = results["render"]
+        depth = results["depth"]
+        depth = depth / (depth.max() + 1e-5)
+
+        gt = view.original_image[0:3, :, :]
+        torchvision.utils.save_image(
+            rendering,
+            os.path.join(render_path, "{0:05d}".format(idx) + ".png"),
+        )
+        torchvision.utils.save_image(
+            gt, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
+        )
+        torchvision.utils.save_image(
+            depth, os.path.join(depth_path, "{0:05d}".format(idx) + ".png")
+        )
+
+    new_d_xyz = np.array(new_d_xyz)
+    new_d_rotation = np.array(new_d_rotation)
+    new_d_scaling = np.array(new_d_scaling)
+
+    pdb.set_trace()
+
+    np.save(
+        os.path.join(model_path, "can_d_xyz.npy"),
+        new_d_xyz,
+    )
+    np.save(
+        os.path.join(model_path, "can_d_rotation.npy"),
+        new_d_rotation,
+    )
+    np.save(
+        os.path.join(model_path, "can_d_scaling.npy"),
+        new_d_scaling,
+    )
+
 
 def all_camera_render(
     model_path,
@@ -267,7 +393,7 @@ def all_camera_render(
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
     depth_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depth")
-    moving_path= os.path.join(model_path, name, "ours_{}".format(iteration), "dynamic")
+    moving_path = os.path.join(model_path, name, "ours_{}".format(iteration), "dynamic")
 
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
@@ -276,20 +402,17 @@ def all_camera_render(
 
     t_list = []
 
-    
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        
+
         if load2gpu_on_the_fly:
             view.load2device()
 
         fid = view.fid
-        view = views[0] # replace all the views with the first view
         xyz = gaussians.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
-        #flag_segment = (idx % 100 == 0)
+        # flag_segment = (idx % 100 == 0)
         flag_segment = False
-        
 
         results = render(
             view,
@@ -321,45 +444,45 @@ def all_camera_render(
             depth, os.path.join(depth_path, "{0:05d}".format(idx) + ".png")
         )
 
-        
-        
-
         if idx % 100 == 0:
-            
+
             # project the 3D points from world space to camera space
             means3D = results["means3D"]
             # 3D points in world space
             xyz = gaussians.get_xyz
-            Rt=torch.from_numpy(view.R).transpose(0,1).to(device="cuda").float()
-            Tt=torch.from_numpy(view.T).unsqueeze(1).transpose(0,1).to(device="cuda").float()
+            Rt = torch.from_numpy(view.R).transpose(0, 1).to(device="cuda").float()
+            Tt = (
+                torch.from_numpy(view.T)
+                .unsqueeze(1)
+                .transpose(0, 1)
+                .to(device="cuda")
+                .float()
+            )
             # 3D points in camera space
             xyz_cam = torch.matmul(xyz, Rt) + Tt
             # 3D points displaced in camera space
-            means3D_cam = torch.matmul(means3D,Rt) + Tt
+            means3D_cam = torch.matmul(means3D, Rt) + Tt
             # displacement of the 3D points in camera space
-            d_xyz_cam = torch.matmul(d_xyz,Rt)
+            d_xyz_cam = torch.matmul(d_xyz, Rt)
             # rotation of the 3D points in camera space
             R_quat = matrix_to_quaternion(view.R).to(device="cuda")
             d_rotation_cam = quaternion_multiply_batched(R_quat, d_rotation)
             # save d_xyz_cam, fid and means3D_cam to npy files
 
-            root=args.model_path
+            root = args.model_path
             name_idx = str(idx).zfill(5)
 
-            np.save(os.path.join(root, "d_xyz_cam_{}.npy".format(name_idx)), d_xyz_cam.cpu().numpy())
-            np.save(os.path.join(root, "means3D_cam_{}.npy".format(name_idx)), means3D_cam.cpu().numpy())
-            np.save(os.path.join(root, "fid_cam_{}.npy".format(name_idx)), fid.cpu().numpy())
-    
-
-        
-
-
-    
-
-
-
-
-
+            np.save(
+                os.path.join(root, "d_xyz_cam_{}.npy".format(name_idx)),
+                d_xyz_cam.cpu().numpy(),
+            )
+            np.save(
+                os.path.join(root, "means3D_cam_{}.npy".format(name_idx)),
+                means3D_cam.cpu().numpy(),
+            )
+            np.save(
+                os.path.join(root, "fid_cam_{}.npy".format(name_idx)), fid.cpu().numpy()
+            )
 
 
 def segment_dynamic_gaussian(
@@ -772,6 +895,7 @@ def render_sets(
     skip_test: bool,
     mode: str,
 ):
+
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
         scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
@@ -795,6 +919,8 @@ def render_sets(
             render_func = segment_dynamic_gaussian
         elif mode == "oneCamera":
             render_func = one_camera_render
+        elif mode == "new_canonical":
+            render_func = new_canonical_space
         else:
             render_func = interpolate_all
 
@@ -839,7 +965,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode",
         default="render",
-        choices=["render", "time", "view", "all", "pose", "original", "segment", "oneCamera"],
+        choices=[
+            "render",
+            "time",
+            "view",
+            "all",
+            "pose",
+            "original",
+            "segment",
+            "oneCamera",
+            "new_canonical",
+        ],
     )
     args = get_combined_args(parser)
     print("Rendering " + args.model_path)

@@ -137,7 +137,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )  # we detach the gaussians to avoid backpropagation through them
 
         # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
-        if iteration in [3001, 5001, 10001, 19001]:
+        if iteration in [3501, 5001, 10001, 19001]:
             count = 0
             name_iter = iteration
 
@@ -151,7 +151,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 flag_segment = True
 
             count += 1
-
 
         # Render
         render_pkg_re = render(
@@ -437,7 +436,7 @@ if __name__ == "__main__":
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[7_000, 10_000, 20_000, 30_000, 40000],
+        default=[5_000, 7_000, 10_000, 20_000, 30_000, 40000],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
