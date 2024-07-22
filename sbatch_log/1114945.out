@@ -1,0 +1,7 @@
+/var/spool/slurm/slurmd/state/job1114945/slurm_script: line 8: workon: command not found
+Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/train.py", line 16, in <module>
+    from gaussian_renderer import render, network_gui, save_npy
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/gaussian_renderer/__init__.py", line 14, in <module>
+    from diff_gaussian_rasterization import (
+ModuleNotFoundError: No module named 'diff_gaussian_rasterization'

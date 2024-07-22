@@ -27,6 +27,8 @@ from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 from utils.camera_utils import camera_nerfies_from_JSON
 
+import pdb as pdb
+
 
 class CameraInfo(NamedTuple):
     uid: int
@@ -459,6 +461,7 @@ def readNerfiesCameras(path):
         fid = all_time[idx]
         T = position
         R = orientation
+
 
         FovY = focal2fov(focal, image.size[1])
         FovX = focal2fov(focal, image.size[0])

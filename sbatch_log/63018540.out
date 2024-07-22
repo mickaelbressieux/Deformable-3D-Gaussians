@@ -1,0 +1,20 @@
+/var/spool/slurm/slurmd/state/job63018540/slurm_script: line 8: workon: command not found
+Optimizing /cluster/project/hilliges/mbressieux/log/cup_novel_view
+Output folder: /cluster/project/hilliges/mbressieux/log/cup_novel_view [26/06 18:48:41]
+Found dataset.json file, assuming Nerfies data set! [26/06 18:49:05]
+Reading Nerfies Info [26/06 18:49:05]
+ [26/06 18:49:14]
+Loading Training Cameras [26/06 18:49:15]
+Loading Test Cameras [26/06 18:49:15]
+Number of points at initialisation :  50290 [26/06 18:49:15]
+Training progress:   0%|          | 0/20000 [00:00<?, ?it/s]Traceback (most recent call last):
+  File "train.py", line 419, in <module>
+    training(
+  File "train.py", line 137, in training
+    render_pkg_re = render(
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/gaussian_renderer/__init__.py", line 165, in render
+    rendered_image, radii, depth = rasterizer(
+  File "/cluster/apps/nss/gcc-8.2.0/python/3.8.5/x86_64/lib64/python3.8/site-packages/torch/nn/modules/module.py", line 1051, in _call_impl
+    return forward_call(*input, **kwargs)
+TypeError: forward() got an unexpected keyword argument 'means2D_densify'
+Training progress:   0%|          | 0/20000 [00:00<?, ?it/s]
