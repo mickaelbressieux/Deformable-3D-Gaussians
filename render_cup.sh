@@ -9,4 +9,4 @@ workon Def3DGS
 
 LOG=/cluster/project/hilliges/mbressieux/log/cup_novel_view
 
-python render.py -m ${LOG} --mode segment
+python render.py -m ${LOG} --mode oneCamera
