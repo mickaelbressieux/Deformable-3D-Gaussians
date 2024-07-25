@@ -157,6 +157,8 @@ def one_camera_render(
             view.load2device()
 
         fid = view.fid
+        gt = view.original_image[0:3, :, :]
+        view = views[0]
         xyz = gaussians.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
@@ -203,10 +205,10 @@ def one_camera_render(
             name_view=str(idx),
         )
         rendering = results["render"]
-        depth = results["depth"]
-        depth = depth / (depth.max() + 1e-5)
+        depth_not_normalized = results["depth"]
+        depth = depth_not_normalized / (depth_not_normalized.max() + 1e-5)
 
-        gt = view.original_image[0:3, :, :]
+        
         torchvision.utils.save_image(
             rendering,
             os.path.join(render_path, "{0:05d}".format(idx) + ".png"),
@@ -216,6 +218,9 @@ def one_camera_render(
         )
         torchvision.utils.save_image(
             depth, os.path.join(depth_path, "{0:05d}".format(idx) + ".png")
+        )
+        torchvision.utils.save_image(
+            depth_not_normalized, os.path.join(depth_path, "not_normalized_{0:05d}".format(idx) + ".png")
         )
 
         
@@ -283,7 +288,6 @@ def all_camera_render(
             view.load2device()
 
         fid = view.fid
-        view = views[0] # replace all the views with the first view
         xyz = gaussians.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)

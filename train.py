@@ -437,7 +437,7 @@ if __name__ == "__main__":
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[7_000, 10_000, 20_000, 30_000, 40000],
+        default=[3_000, 7_000, 10_000, 20_000, 30_000, 40000],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
