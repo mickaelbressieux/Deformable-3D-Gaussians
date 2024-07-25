@@ -26,6 +26,8 @@ import torchvision
 import numpy as np
 import os
 
+from sklearn.cluster import MeanShift
+
 
 def quaternion_multiply(q1, q2):
     w1, x1, y1, z1 = q1[..., 0], q1[..., 1], q1[..., 2], q1[..., 3]
@@ -89,8 +91,9 @@ def render(
     is_6dof=False,
     scaling_modifier=1.0,
     override_color=None,
-    flag_pdb=False,
+    flag_save=False,
     flag_segment=False,
+    can_d_xyz=None,
     name_iter=None,
     name_view=None,
     root=".",
@@ -183,21 +186,20 @@ def render(
     else:
         colors_precomp = override_color
 
-    if flag_pdb:
+    if flag_save:
         flag_segment = True
+        save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
+        save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
 
     if flag_segment:
         with torch.no_grad():
-            d_norm = torch.norm(d_xyz, dim=1)
+            if can_d_xyz is None:
+                d_norm = torch.norm(d_xyz, dim=1)
+            else:
+                d_norm = torch.norm(can_d_xyz, dim=1)
 
-            save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
-            save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
-
-            # get indices of the gaussians that are have associated d_norm in the top 10% of the values
-            indices = torch.argsort(d_norm, descending=True)[: int(0.1 * len(d_norm))]
-            other_indices = torch.argsort(d_norm, descending=True)[
-                int(0.1 * len(d_norm)) :
-            ]
+            # get indices of the gaussians that are have associated d_norm in the top 15% of the values
+            indices, other_indices = getTopPercentageIndices(d_norm, 0.15)
             d_norm = d_norm[torch.cat((indices, other_indices))]
 
             # create a tensor of size (N, 3) with colors. The color is red for the highest d_norm value and blue for the lowest d_norm value
@@ -211,7 +213,8 @@ def render(
 
             # create an opacity_heatmap matrix with the same size as the opacity matrix and full of its max value
             opacity_heatmap = torch.full_like(opacity, 1.0)
-
+            if indices.shape[0]==0:
+                raise ValueError("No gaussians are considered moving")
             # create rendered image with only those gaussians that are in the top 10% of the d_norm values
             rendered_image_moving, _, _ = rasterizer(
                 means3D=means3D[indices],  # (N, 3)
@@ -224,6 +227,7 @@ def render(
                 rotations=rotations[indices],  # (N, 4)
                 cov3D_precomp=cov3D_precomp,
             )
+                
 
             # create rendered "heatmap" image with all the gaussians, colored wrt the d_norm values
             rendered_heatmap, _, _ = rasterizer(
@@ -260,22 +264,32 @@ def render(
             if not os.path.exists(root + "/rendering/" + name_iter):
                 os.makedirs(root + "/rendering/" + name_iter)
 
+            if not os.path.exists(root + "/rendering/" + name_iter + "/heatmap"):
+                os.makedirs(root + "/rendering/" + name_iter + "/heatmap")
+
+            if not os.path.exists(root + "/rendering/" + name_iter + "/moving"):
+                os.makedirs(root + "/rendering/" + name_iter + "/moving")
+
+            if not os.path.exists(root + "/rendering/" + name_iter + "/full"):
+                os.makedirs(root + "/rendering/" + name_iter + "/full")
+
             # save the rendered images
             torchvision.utils.save_image(
-                rendered_image_moving,
-                root
-                + "/rendering/"
-                + name_iter
-                + "/"
-                + name_view.zfill(4)
-                + "_moving.png",
-            )
+                    rendered_image_moving,
+                    root
+                    + "/rendering/"
+                    + name_iter
+                    + "/moving/"
+                    + name_view.zfill(4)
+                    + ".png",
+                )
+            
             torchvision.utils.save_image(
                 rendered_heatmap,
                 root
                 + "/rendering/"
                 + name_iter
-                + "/"
+                + "/heatmap/"
                 + name_view.zfill(4)
                 + "_heatmap.png",
             )
@@ -284,7 +298,7 @@ def render(
                 root
                 + "/rendering/"
                 + name_iter
-                + "/"
+                + "/full/"
                 + name_view.zfill(4)
                 + "_full.png",
             )
@@ -302,3 +316,25 @@ def render(
         "scaling": scales,
         "rotation": rotations,
     }
+
+def getTopPercentageIndices(d_norm, percentage=0.15):
+    indices = torch.argsort(d_norm, descending=True)[: int(percentage * len(d_norm))]
+    other_indices = torch.argsort(d_norm, descending=True)[
+                int(percentage * len(d_norm)) :
+            ]
+    
+    return indices,other_indices
+
+def meanShift(d_norm, boot_size=1000, bandwidth=0.01):
+    sample_idx = np.random.choice(d_norm.shape[0], boot_size, replace=False)
+    X=d_norm[sample_idx].reshape(-1, 1)
+
+            # Create a MeanShift object and fit it to the data
+    ms = MeanShift(bandwidth=bandwidth)
+    ms.fit(X.cpu())
+
+    L=ms.predict(d_norm.reshape(-1,1).cpu())
+
+    indices = torch.tensor([i for i in range(len(L)) if L[i] !=0], device="cuda")
+    other_indices = torch.tensor([i for i in range(len(L)) if L[i] == 0], device="cuda")
+    return indices

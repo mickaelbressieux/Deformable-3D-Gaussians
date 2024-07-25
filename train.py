@@ -141,14 +141,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             count = 0
             name_iter = iteration
 
-        flag_segment = False
+        flag_save = False
 
         if "count" in locals():
             if count < opt.densification_interval:
                 name = "fid_" + str(name_iter) + ".npy"
                 save_npy(fid, name, root=args.model_path)
-                flag_pdb = True
-                flag_segment = True
+                flag_save = True
 
             count += 1
 
@@ -162,8 +161,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             d_rotation,
             d_scaling,
             dataset.is_6dof,
-            flag_pdb=flag_pdb,
-            flag_segment=flag_segment,
+            flag_save=flag_save,
             name_iter=str(name_iter),
             name_view=str(rdm_idx),
             root=args.model_path,

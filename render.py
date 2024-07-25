@@ -509,15 +509,29 @@ def segment_dynamic_gaussian(
 
     t_list = []
 
+    new_d_rotation = []
+    new_d_scaling = []
+    new_d_xyz = []
+
     # render all views but segment the most dynamic gaussian
     for idx, view in enumerate(tqdm(views, desc="Rendering progress - segmenting")):
         if load2gpu_on_the_fly:
             view.load2device()
         fid = view.fid
+
+        if (idx==0) and (fid!=0):
+            #stop in an error:
+            raise ValueError("The first view should be at time 0")
+        
         xyz = gaussians.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
         flag_segment = True
+
+        if fid == 0:
+            orig_d_xyz = d_xyz
+            #orig_d_rotation = d_rotation
+            #orig_d_scaling = d_scaling
 
         results = render(
             view,
@@ -529,6 +543,7 @@ def segment_dynamic_gaussian(
             d_scaling,
             is_6dof,
             flag_segment=flag_segment,
+            can_d_xyz=d_xyz-orig_d_xyz,
             root=args.model_path,
             name_iter=str(iteration),
             name_view=str(idx),
@@ -536,6 +551,28 @@ def segment_dynamic_gaussian(
         rendering = results["render"]
         depth = results["depth"]
         depth = depth / (depth.max() + 1e-5)
+
+        if fid == 0:
+            # create the canonical space at first time step
+            can_means3D = results["means3D"]
+            can_xyz = gaussians.get_xyz  # for debugging
+            can_rotation = results["rotation"]
+            can_scaling = results["scaling"]
+
+            can_d_xyz = d_xyz.cpu().numpy()
+            can_d_rotation = d_rotation.cpu().numpy()
+            can_d_scaling = d_scaling.cpu().numpy()
+
+            new_d_xyz.append(np.zeros_like(can_d_xyz))
+            new_d_rotation.append(np.zeros_like(can_d_rotation))
+            new_d_scaling.append(np.zeros_like(can_d_scaling))
+
+        else:
+            # compute the displacement in canonical space
+            # pdb.set_trace()
+            new_d_xyz.append(d_xyz.cpu().numpy() - can_d_xyz)
+            new_d_rotation.append(d_rotation.cpu().numpy() - can_d_rotation)
+            new_d_scaling.append(d_scaling.cpu().numpy() - can_d_scaling)
 
         gt = view.original_image[0:3, :, :]
         torchvision.utils.save_image(
@@ -548,10 +585,39 @@ def segment_dynamic_gaussian(
         torchvision.utils.save_image(
             depth, os.path.join(depth_path, "{0:05d}".format(idx) + ".png")
         )
-        torchvision.utils.save_image(
+        """torchvision.utils.save_image(
             results["render_moving"],
             os.path.join(moving_path, "{0:05d}".format(idx) + ".png"),
-        )
+        )"""
+    new_d_xyz = np.array(new_d_xyz)
+    new_d_rotation = np.array(new_d_rotation)
+    new_d_scaling = np.array(new_d_scaling)
+
+
+    np.save(
+        os.path.join(model_path, "can_d_xyz.npy"),
+        new_d_xyz,
+    )
+    np.save(
+        os.path.join(model_path, "can_d_rotation.npy"),
+        new_d_rotation,
+    )
+    np.save(
+        os.path.join(model_path, "can_d_scaling.npy"),
+        new_d_scaling,
+    )
+    np.save(
+        os.path.join(model_path, "can_means3D.npy"),
+        can_means3D.cpu().numpy(),
+    )
+    np.save(
+        os.path.join(model_path, "can_xyz.npy"),
+        can_xyz.cpu().numpy(),
+    )
+    np.save(
+        os.path.join(model_path, "can_rotation.npy"),
+        can_rotation.cpu().numpy(),
+    )
 
 
 def interpolate_time(
