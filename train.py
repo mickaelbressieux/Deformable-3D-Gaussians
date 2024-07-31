@@ -25,6 +25,8 @@ from arguments import ModelParams, PipelineParams, OptimizationParams
 
 import pdb
 
+from DSU_utils import create_dynamic_mask, identify_rigid_object
+
 try:
     from torch.utils.tensorboard import SummaryWriter
 
@@ -150,6 +152,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 flag_save = True
 
             count += 1
+
+        if iteration in opt.dynamic_seg_iterations:
+            pdb.set_trace()
+            mask = create_dynamic_mask(d_xyz)
+            rigid_object = identify_rigid_object(
+                gaussians.get_xyz, d_xyz, args.model_path
+            )
 
         # Render
         render_pkg_re = render(
@@ -435,6 +444,12 @@ if __name__ == "__main__":
         nargs="+",
         type=int,
         default=[5_000, 7_000, 10_000, 20_000, 30_000, 40000],
+    )
+    parser.add_argument(
+        "--dynamic_seg_iterations",
+        nargs="+",
+        type=int,
+        default=[3_500, 8_000, 12_000, 16_000],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
