@@ -25,7 +25,7 @@ from arguments import ModelParams, PipelineParams, OptimizationParams
 
 import pdb
 
-from DSU_utils import create_dynamic_mask, identify_rigid_object
+from DSU_utils import create_dynamic_mask, identify_rigid_object, create_all_d_xyz
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -152,13 +152,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 flag_save = True
 
             count += 1
-
-        if iteration in opt.dynamic_seg_iterations:
-            pdb.set_trace()
-            mask = create_dynamic_mask(d_xyz)
-            rigid_object = identify_rigid_object(
-                gaussians.get_xyz, d_xyz, args.model_path
-            )
+        with torch.no_grad():
+            if iteration in args.dynamic_seg_iterations:
+                # pdb.set_trace()
+                all_d_xyz = create_all_d_xyz(deform, gaussians.get_xyz, scene)
+                mask = create_dynamic_mask(all_d_xyz)
+                rigid_object = identify_rigid_object(
+                    gaussians.get_xyz, all_d_xyz, args.model_path
+                )
 
         # Render
         render_pkg_re = render(

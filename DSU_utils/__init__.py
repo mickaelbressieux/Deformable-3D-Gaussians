@@ -5,6 +5,8 @@ import math
 
 from sklearn.cluster import KMeans
 
+import pdb
+
 
 def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2) -> torch.Tensor:
     """
@@ -16,12 +18,20 @@ def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2) -> torch.Tens
     dist = torch.norm(d_xyz[1:, :, :] - d_xyz[:-1, :, :], dim=2)
     dist = torch.sum(dist, dim=0)
 
-    kmeans = KMeans(n_clusters=nb_clusters, random_state=0).fit(dist.view(-1, 1))
-    mask = torch.zeros_like(dist)
+    dist = dist.cpu().numpy()
+
+    # Use KMeans to find the cluster with the highest distance
+    kmeans = KMeans(n_clusters=nb_clusters, random_state=0).fit(dist.reshape(-1, 1))
+    mask = np.zeros_like(dist)
 
     # find the cluster with the highest distance
     max_cluster = np.argmax(kmeans.cluster_centers_)
     mask[kmeans.labels_ == max_cluster] = 1
+
+    mask = torch.tensor(mask).to(d_xyz.device)
+
+    print(f"Number of gaussians in the dynamic mask: {mask.sum()}")
+    print(f"Number of gaussians not in the dynamic mask: {(1 - mask).sum()}")
 
     return mask
 
@@ -36,7 +46,6 @@ def identify_rigid_object(
     :param datapath: path to save the rigid motion
     :return: mask, size (nb_gaussians)
     """
-
     xyz = xyz.cpu().numpy()
     d_xyz = d_xyz.cpu().numpy()
     d_xyz = d_xyz.transpose(1, 2, 0)
@@ -56,7 +65,7 @@ def identify_rigid_object(
 
         # step 2: use RANSAC to find the rotation and translation that best fit the data
         ransac = Ransac_Def3DGS(
-            xyz, d_xyz, error_threshold=0.1, num_samples=1000, max_trials=3
+            xyz, d_xyz, error_threshold=0.01, num_samples=1000, max_trials=3
         )
         R, t = ransac.fit()
 
@@ -80,6 +89,10 @@ def identify_rigid_object(
             xyz = xyz[outliers]
             d_xyz = d_xyz[outliers]
 
+        if outliers.sum() == 0:
+            print(f"No more outliers. Stopping regression at iteration {i}")
+            break
+
         # step 8: store the rigid motion
         rigid_rot.append(R)
         rigid_t.append(t)
@@ -98,6 +111,32 @@ def identify_rigid_object(
     rigid_objects = torch.tensor(rigid_objects)
 
     return rigid_objects
+
+
+def create_all_d_xyz(deform, xyz, scene):
+    viewpoint_stack = scene.getTrainCameras().copy()
+    timestamps = []
+    for view in viewpoint_stack:
+        timestamps.append(view.fid)
+    timestamps.sort()
+
+    all_d_xyz = []
+
+    for fid in timestamps:
+        N = xyz.shape[0]
+        time_input = fid.unsqueeze(0).expand(
+            N, -1
+        )  # take the frame id and expand it to the number of gaussians.
+
+        d_xyz, _, _ = deform.step(
+            xyz.detach(), time_input
+        )  # we detach the gaussians to avoid backpropagation through them
+
+        all_d_xyz.append(d_xyz)
+
+    all_d_xyz = torch.stack(all_d_xyz, dim=0).to(xyz.device)
+
+    return all_d_xyz
 
 
 class Ransac_Def3DGS:
