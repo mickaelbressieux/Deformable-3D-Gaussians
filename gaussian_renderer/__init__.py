@@ -97,6 +97,7 @@ def render(
     name_iter=None,
     name_view=None,
     root=".",
+    inliers=None,
 ):
     """
     Render the scene.
@@ -191,6 +192,49 @@ def render(
         save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
         save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
 
+    if inliers is not None:
+        # inliers is a tensor of size (N) with 0s, 1s, 2s, etc depending on the number of object considered
+        # let s render them separately
+
+        inliers = torch.tensor(inliers, device="cuda")
+        for i in range(inliers.max() + 1):
+            indices = torch.where(inliers == i)[0]
+            rendered_image, radii, depth = rasterizer(
+                means3D=means3D[indices],  # (N, 3)
+                means2D=screenspace_points[indices],  # (N, 3)
+                means2D_densify=screenspace_points_densify[indices],  # (N, 3)
+                shs=shs[indices],  # (N, 16, 3)
+                colors_precomp=colors_precomp,
+                opacities=opacity[indices],  # (N, 1)
+                scales=scales[indices],  # (N, 3)
+                rotations=rotations[indices],  # (N, 4)
+                cov3D_precomp=cov3D_precomp,
+            )
+            if not os.path.exists(root + "/rendering"):
+                os.makedirs(root + "/rendering")
+            if not os.path.exists(root + "/rendering/" + name_iter):
+                os.makedirs(root + "/rendering/" + name_iter)
+            if not os.path.exists(root + "/rendering/" + name_iter + "/inliers"):
+                os.makedirs(root + "/rendering/" + name_iter + "/inliers")
+            if not os.path.exists(
+                root + "/rendering/" + name_iter + "/inliers/" + str(i).zfill(4)
+            ):
+                os.makedirs(
+                    root + "/rendering/" + name_iter + "/inliers/" + str(i).zfill(4)
+                )
+
+            torchvision.utils.save_image(
+                rendered_image,
+                root
+                + "/rendering/"
+                + name_iter
+                + "/inliers/"
+                + str(i).zfill(4)
+                + "/"
+                + name_view.zfill(4)
+                + ".png",
+            )
+
     if flag_segment:
         with torch.no_grad():
             if can_d_xyz is None:
@@ -213,7 +257,7 @@ def render(
 
             # create an opacity_heatmap matrix with the same size as the opacity matrix and full of its max value
             opacity_heatmap = torch.full_like(opacity, 1.0)
-            if indices.shape[0]==0:
+            if indices.shape[0] == 0:
                 raise ValueError("No gaussians are considered moving")
             # create rendered image with only those gaussians that are in the top 10% of the d_norm values
             rendered_image_moving, _, _ = rasterizer(
@@ -227,7 +271,6 @@ def render(
                 rotations=rotations[indices],  # (N, 4)
                 cov3D_precomp=cov3D_precomp,
             )
-                
 
             # create rendered "heatmap" image with all the gaussians, colored wrt the d_norm values
             rendered_heatmap, _, _ = rasterizer(
@@ -275,15 +318,15 @@ def render(
 
             # save the rendered images
             torchvision.utils.save_image(
-                    rendered_image_moving,
-                    root
-                    + "/rendering/"
-                    + name_iter
-                    + "/moving/"
-                    + name_view.zfill(4)
-                    + ".png",
-                )
-            
+                rendered_image_moving,
+                root
+                + "/rendering/"
+                + name_iter
+                + "/moving/"
+                + name_view.zfill(4)
+                + ".png",
+            )
+
             torchvision.utils.save_image(
                 rendered_heatmap,
                 root
@@ -317,24 +360,26 @@ def render(
         "rotation": rotations,
     }
 
+
 def getTopPercentageIndices(d_norm, percentage=0.15):
     indices = torch.argsort(d_norm, descending=True)[: int(percentage * len(d_norm))]
     other_indices = torch.argsort(d_norm, descending=True)[
-                int(percentage * len(d_norm)) :
-            ]
-    
-    return indices,other_indices
+        int(percentage * len(d_norm)) :
+    ]
+
+    return indices, other_indices
+
 
 def meanShift(d_norm, boot_size=1000, bandwidth=0.01):
     sample_idx = np.random.choice(d_norm.shape[0], boot_size, replace=False)
-    X=d_norm[sample_idx].reshape(-1, 1)
+    X = d_norm[sample_idx].reshape(-1, 1)
 
-            # Create a MeanShift object and fit it to the data
+    # Create a MeanShift object and fit it to the data
     ms = MeanShift(bandwidth=bandwidth)
     ms.fit(X.cpu())
 
-    L=ms.predict(d_norm.reshape(-1,1).cpu())
+    L = ms.predict(d_norm.reshape(-1, 1).cpu())
 
-    indices = torch.tensor([i for i in range(len(L)) if L[i] !=0], device="cuda")
+    indices = torch.tensor([i for i in range(len(L)) if L[i] != 0], device="cuda")
     other_indices = torch.tensor([i for i in range(len(L)) if L[i] == 0], device="cuda")
     return indices

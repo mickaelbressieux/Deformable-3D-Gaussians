@@ -519,19 +519,24 @@ def segment_dynamic_gaussian(
             view.load2device()
         fid = view.fid
 
-        if (idx==0) and (fid!=0):
-            #stop in an error:
-            raise ValueError("The first view should be at time 0")
-        
+        if (idx == 0) and (fid != 0):
+            # stop in an error:
+            # raise ValueError("The first view should be at time 0")
+            print(f"the canonical space is not created at time 0, but at time {fid}")
+            first_fid = fid
+
         xyz = gaussians.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
         flag_segment = True
 
-        if fid == 0:
+        if fid == first_fid:
             orig_d_xyz = d_xyz
-            #orig_d_rotation = d_rotation
-            #orig_d_scaling = d_scaling
+
+        if os.path.exists(os.path.join(model_path, "inliers.npy")):
+            inliers = np.load(os.path.join(model_path, "inliers.npy"))  # N
+        else:
+            inliers = None
 
         results = render(
             view,
@@ -543,16 +548,18 @@ def segment_dynamic_gaussian(
             d_scaling,
             is_6dof,
             flag_segment=flag_segment,
-            can_d_xyz=d_xyz-orig_d_xyz,
+            can_d_xyz=d_xyz - orig_d_xyz,
             root=args.model_path,
             name_iter=str(iteration),
             name_view=str(idx),
+            inliers=inliers,
         )
         rendering = results["render"]
         depth = results["depth"]
         depth = depth / (depth.max() + 1e-5)
 
-        if fid == 0:
+
+        if fid == first_fid:
             # create the canonical space at first time step
             can_means3D = results["means3D"]
             can_xyz = gaussians.get_xyz  # for debugging
@@ -569,7 +576,7 @@ def segment_dynamic_gaussian(
 
         else:
             # compute the displacement in canonical space
-            # pdb.set_trace()
+            #
             new_d_xyz.append(d_xyz.cpu().numpy() - can_d_xyz)
             new_d_rotation.append(d_rotation.cpu().numpy() - can_d_rotation)
             new_d_scaling.append(d_scaling.cpu().numpy() - can_d_scaling)
@@ -592,7 +599,6 @@ def segment_dynamic_gaussian(
     new_d_xyz = np.array(new_d_xyz)
     new_d_rotation = np.array(new_d_rotation)
     new_d_scaling = np.array(new_d_scaling)
-
 
     np.save(
         os.path.join(model_path, "can_d_xyz.npy"),

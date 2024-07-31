@@ -6,6 +6,6 @@
 #SBATCH  -n 4
 #SBATCH  --mem-per-cpu=10000
 
-LOG=/cluster/project/hilliges/mbressieux/log/Def3DGS/cup_novel_view
+LOG=/cluster/project/hilliges/mbressieux/log/HOI4D/HOI4D_video6_nerfied
 
 python render.py -m ${LOG} --mode segment --skip_test
