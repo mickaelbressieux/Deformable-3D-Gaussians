@@ -22,16 +22,15 @@ def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2) -> torch.Tens
 
     # Use KMeans to find the cluster with the highest distance
     kmeans = KMeans(n_clusters=nb_clusters, random_state=0).fit(dist.reshape(-1, 1))
-    mask = np.zeros_like(dist)
 
     # find the cluster with the highest distance
     max_cluster = np.argmax(kmeans.cluster_centers_)
-    mask[kmeans.labels_ == max_cluster] = 1
+    mask = kmeans.labels_ == max_cluster
 
     mask = torch.tensor(mask).to(d_xyz.device)
 
     print(f"Number of gaussians in the dynamic mask: {mask.sum()}")
-    print(f"Number of gaussians not in the dynamic mask: {(1 - mask).sum()}")
+    print(f"Number of gaussians not in the dynamic mask: {(~mask).sum()}")
 
     return mask
 
@@ -61,11 +60,16 @@ def identify_rigid_object(
     rigid_rot = []
     rigid_t = []
 
+    num_samples = np.min([1000, xyz.shape[0] // 10])
+    assert xyz.shape[0] > 10, "Not enough gaussians to estimate rigid motion"
+
     for i in range(nb_rigid_motions):
+
+        num_samples = np.min([1000, xyz.shape[0] // 10])
 
         # step 2: use RANSAC to find the rotation and translation that best fit the data
         ransac = Ransac_Def3DGS(
-            xyz, d_xyz, error_threshold=0.01, num_samples=1000, max_trials=3
+            xyz, d_xyz, error_threshold=0.04, num_samples=num_samples, max_trials=3
         )
         R, t = ransac.fit()
 
@@ -89,7 +93,7 @@ def identify_rigid_object(
             xyz = xyz[outliers]
             d_xyz = d_xyz[outliers]
 
-        if outliers.sum() == 0:
+        if outliers.sum() < 10:
             print(f"No more outliers. Stopping regression at iteration {i}")
             break
 
@@ -108,7 +112,7 @@ def identify_rigid_object(
     np.save(datapath + "/rigid_t.npy", rigid_t)
     np.save(datapath + "/inliers.npy", inliers)
 
-    rigid_objects = torch.tensor(rigid_objects)
+    rigid_objects = torch.tensor(rigid_objects).to(d_xyz.device)
 
     return rigid_objects
 
@@ -298,7 +302,8 @@ class Ransac_Def3DGS:
         return self.R, self.t
 
 
-def recreate_full_inliers(inliers_arr):
+def recreate_full_inliers(inliers_arr: list) -> np.array:
+
     for j in range(len(inliers_arr)):
         num = len(inliers_arr) - j - 1
         idx = np.array(np.where(inliers_arr[num] == True))[0]
@@ -317,5 +322,9 @@ def recreate_full_inliers(inliers_arr):
             if i not in idx:
                 final_inliers[i] = temp_inliers[k]
                 k += 1
+
+    # if final_inliers does not exist, create it full of zeroes:
+    if "final_inliers" not in locals():
+        final_inliers = np.zeros(inliers_arr[0].shape[0])
 
     return final_inliers

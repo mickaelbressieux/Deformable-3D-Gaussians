@@ -38,12 +38,14 @@ except ImportError:
 def training(dataset, opt, pipe, testing_iterations, saving_iterations):
     flag_pdb = False
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = GaussianModel(dataset.sh_degree)
+    gaussians_dyn = GaussianModel(dataset.sh_degree)
+    gaussians_stat = GaussianModel(dataset.sh_degree)
     deform = DeformModel(dataset.is_blender, dataset.is_6dof)
     deform.train_setting(opt)
 
-    scene = Scene(dataset, gaussians)
-    gaussians.training_setup(opt)
+    scene = Scene(dataset, gaussians_dyn)
+    gaussians_dyn.training_setup(opt)
+    gaussians_stat.training_setup(opt)
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -83,7 +85,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 ) = network_gui.receive()
                 if custom_cam != None:
                     net_image = render(
-                        custom_cam, gaussians, pipe, background, scaling_modifer
+                        custom_cam, gaussians_dyn, pipe, background, scaling_modifer
                     )["render"]
                     net_image_bytes = memoryview(
                         (torch.clamp(net_image, min=0, max=1.0) * 255)
@@ -105,7 +107,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
         # Every 1000 its we increase the levels of SH up to a maximum degree
         if iteration % 1000 == 0:
-            gaussians.oneupSHdegree()
+            gaussians_dyn.oneupSHdegree()
 
         # Pick a random Camera
         if not viewpoint_stack:
@@ -118,12 +120,42 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         viewpoint_cam = viewpoint_stack.pop(rdm_idx)  # Randomly select a camera
         if dataset.load2gpu_on_the_fly:
             viewpoint_cam.load2device()
+
+        with torch.no_grad():
+            if iteration in args.dynamic_seg_iterations:
+                # pdb.set_trace()
+
+                all_d_xyz = create_all_d_xyz(deform, gaussians_dyn.get_xyz, scene)
+
+                mask = create_dynamic_mask(all_d_xyz)
+
+                stat_xyz = gaussians_dyn.get_xyz[~mask]
+                stat_scaling = gaussians_dyn.get_scaling[~mask]
+                stat_rotation = gaussians_dyn.get_rotation[~mask]
+                stat_features_dc = gaussians_dyn._features_dc[~mask]
+                stat_features_rest = gaussians_dyn._features_rest[~mask]
+                stat_opacity = gaussians_dyn.get_opacity[~mask]
+
+                gaussians_stat.densification_postfix(
+                    stat_xyz,
+                    stat_features_dc,
+                    stat_features_rest,
+                    stat_opacity,
+                    stat_scaling,
+                    stat_rotation,
+                )
+                gaussians_dyn.prune_points(~mask)
+
+                rigid_object = identify_rigid_object(
+                    gaussians_dyn.get_xyz, all_d_xyz[:, mask], args.model_path
+                )
+
         fid = viewpoint_cam.fid  # Frame ID
 
         if iteration < opt.warm_up:
             d_xyz, d_rotation, d_scaling = 0.0, 0.0, 0.0
         else:
-            N = gaussians.get_xyz.shape[0]
+            N = gaussians_dyn.get_xyz.shape[0]
             time_input = fid.unsqueeze(0).expand(
                 N, -1
             )  # take the frame id and expand it to the number of gaussians.
@@ -135,7 +167,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 * smooth_term(iteration)
             )
             d_xyz, d_rotation, d_scaling = deform.step(
-                gaussians.get_xyz.detach(), time_input + ast_noise
+                gaussians_dyn.get_xyz.detach(), time_input + ast_noise
             )  # we detach the gaussians to avoid backpropagation through them
 
         # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
@@ -152,19 +184,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 flag_save = True
 
             count += 1
-        with torch.no_grad():
-            if iteration in args.dynamic_seg_iterations:
-                # pdb.set_trace()
-                all_d_xyz = create_all_d_xyz(deform, gaussians.get_xyz, scene)
-                mask = create_dynamic_mask(all_d_xyz)
-                rigid_object = identify_rigid_object(
-                    gaussians.get_xyz, all_d_xyz, args.model_path
-                )
 
         # Render
         render_pkg_re = render(
             viewpoint_cam,
-            gaussians,
+            gaussians_dyn,
             pipe,
             background,
             d_xyz,
@@ -218,8 +242,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 progress_bar.close()
 
             # Keep track of max radii in image-space for pruning
-            gaussians.max_radii2D[visibility_filter] = torch.max(
-                gaussians.max_radii2D[visibility_filter], radii[visibility_filter]
+            gaussians_dyn.max_radii2D[visibility_filter] = torch.max(
+                gaussians_dyn.max_radii2D[visibility_filter], radii[visibility_filter]
             )
 
             # Log and save
@@ -253,7 +277,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 viewspace_point_tensor_densify = render_pkg_re[
                     "viewspace_points_densify"
                 ]
-                gaussians.add_densification_stats(
+                gaussians_dyn.add_densification_stats(
                     viewspace_point_tensor_densify, visibility_filter
                 )
 
@@ -264,7 +288,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                     size_threshold = (
                         20 if iteration > opt.opacity_reset_interval else None
                     )
-                    gaussians.densify_and_prune(
+                    gaussians_dyn.densify_and_prune(
                         opt.densify_grad_threshold,
                         0.005,
                         scene.cameras_extent,
@@ -274,14 +298,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 if iteration % opt.opacity_reset_interval == 0 or (
                     dataset.white_background and iteration == opt.densify_from_iter
                 ):
-                    gaussians.reset_opacity()
+                    gaussians_dyn.reset_opacity()
 
             # Optimizer step
             if iteration < opt.iterations:
-                gaussians.optimizer.step()
-                gaussians.update_learning_rate(iteration)
+                gaussians_dyn.optimizer.step()
+                gaussians_dyn.update_learning_rate(iteration)
                 deform.optimizer.step()
-                gaussians.optimizer.zero_grad(set_to_none=True)
+                gaussians_dyn.optimizer.zero_grad(set_to_none=True)
                 deform.optimizer.zero_grad()
                 deform.update_learning_rate(iteration)
 
@@ -450,7 +474,7 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=[3_500, 8_000, 12_000, 16_000],
+        default=[3_500, 4_000, 4_500, 5_000],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
