@@ -13,7 +13,7 @@ import os
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim, kl_divergence
-from gaussian_renderer import render, network_gui, save_npy
+from gaussian_renderer import render, network_gui, save_npy, render_two_sets
 import sys
 from scene import Scene, GaussianModel, DeformModel
 from utils.general_utils import safe_state, get_linear_noise_func
@@ -45,7 +45,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
     scene = Scene(dataset, gaussians_dyn)
     gaussians_dyn.training_setup(opt)
-    gaussians_stat.training_setup(opt)
+    stat_init=False
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -121,34 +121,57 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         if dataset.load2gpu_on_the_fly:
             viewpoint_cam.load2device()
 
+        flag_pdb = False
+
+        if iteration%10==0:
+            print(f"Number of dynamic gaussians: {gaussians_dyn.get_xyz.shape[0]}")
+            print(f"Number of static gaussians: {gaussians_stat.get_xyz.shape[0]}")
+
         with torch.no_grad():
             if iteration in args.dynamic_seg_iterations:
-                # pdb.set_trace()
 
                 all_d_xyz = create_all_d_xyz(deform, gaussians_dyn.get_xyz, scene)
 
                 mask = create_dynamic_mask(all_d_xyz)
-
-                stat_xyz = gaussians_dyn.get_xyz[~mask]
-                stat_scaling = gaussians_dyn.get_scaling[~mask]
-                stat_rotation = gaussians_dyn.get_rotation[~mask]
+                stat_xyz = (gaussians_dyn._xyz+all_d_xyz[0,:,:])[~mask]
+                stat_scaling = gaussians_dyn._scaling[~mask]
+                stat_rotation = gaussians_dyn._rotation[~mask]
                 stat_features_dc = gaussians_dyn._features_dc[~mask]
                 stat_features_rest = gaussians_dyn._features_rest[~mask]
-                stat_opacity = gaussians_dyn.get_opacity[~mask]
+                stat_opacity = gaussians_dyn._opacity[~mask]
+                stat_max_radii2D = gaussians_dyn.max_radii2D[~mask]
 
-                gaussians_stat.densification_postfix(
-                    stat_xyz,
-                    stat_features_dc,
-                    stat_features_rest,
-                    stat_opacity,
-                    stat_scaling,
-                    stat_rotation,
-                )
+                
+
+                if not(stat_init):
+                    gaussians_stat.create_from_other_gaussian_set(
+                        stat_xyz,
+                        stat_features_dc,
+                        stat_features_rest,
+                        stat_opacity,
+                        stat_scaling,
+                        stat_rotation,
+                        stat_max_radii2D,
+                    )
+                    gaussians_stat.training_setup(opt)
+                    stat_init = True
+                else:
+                    gaussians_stat.densification_postfix(
+                        stat_xyz,
+                        stat_features_dc,
+                        stat_features_rest,
+                        stat_opacity,
+                        stat_scaling,
+                        stat_rotation,
+                    )
+
                 gaussians_dyn.prune_points(~mask)
 
-                rigid_object = identify_rigid_object(
+                """rigid_object = identify_rigid_object(
                     gaussians_dyn.get_xyz, all_d_xyz[:, mask], args.model_path
-                )
+                )"""
+
+                flag_pdb = True
 
         fid = viewpoint_cam.fid  # Frame ID
 
@@ -171,13 +194,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )  # we detach the gaussians to avoid backpropagation through them
 
         # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
-        if iteration in [3501, 5001, 10001, 19001]:
+        if iteration in [3501, 4601, 10001, 19001]:
             count = 0
             name_iter = iteration
 
         flag_save = False
 
         if "count" in locals():
+            # save the fid, d_xyz and means3D for 100 iterations (DSU project)
             if count < opt.densification_interval:
                 name = "fid_" + str(name_iter) + ".npy"
                 save_npy(fid, name, root=args.model_path)
@@ -185,21 +209,43 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
             count += 1
 
+        
+
         # Render
-        render_pkg_re = render(
-            viewpoint_cam,
-            gaussians_dyn,
-            pipe,
-            background,
-            d_xyz,
-            d_rotation,
-            d_scaling,
-            dataset.is_6dof,
-            flag_save=flag_save,
-            name_iter=str(name_iter),
-            name_view=str(rdm_idx),
-            root=args.model_path,
-        )
+
+        if gaussians_stat.get_xyz.shape[0] > 0:
+            render_pkg_re = render_two_sets(
+                viewpoint_cam,
+                gaussians_dyn,
+                gaussians_stat,
+                pipe,
+                background,
+                d_xyz,
+                d_rotation,
+                d_scaling,
+                dataset.is_6dof,
+                flag_save=flag_save,
+                name_iter=str(name_iter),
+                name_view=str(rdm_idx),
+                root=args.model_path,
+                flag_pdb=flag_pdb,
+            )
+        else:
+            render_pkg_re = render(
+                viewpoint_cam,
+                gaussians_dyn,
+                pipe,
+                background,
+                d_xyz,
+                d_rotation,
+                d_scaling,
+                dataset.is_6dof,
+                flag_save=flag_save,
+                name_iter=str(name_iter),
+                name_view=str(rdm_idx),
+                root=args.model_path,
+            )
+        
         flag_pdb = False
         image, viewspace_point_tensor, visibility_filter, radii = (
             render_pkg_re["render"],
@@ -242,9 +288,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 progress_bar.close()
 
             # Keep track of max radii in image-space for pruning
-            gaussians_dyn.max_radii2D[visibility_filter] = torch.max(
-                gaussians_dyn.max_radii2D[visibility_filter], radii[visibility_filter]
-            )
+            if gaussians_stat.get_xyz.shape[0] > 0:
+                torch.cat((gaussians_dyn.max_radii2D, gaussians_stat.max_radii2D), dim=0)[visibility_filter] = torch.max(
+                    torch.cat((gaussians_dyn.max_radii2D, gaussians_stat.max_radii2D), dim=0)[visibility_filter], radii[visibility_filter]
+                )
+            else:
+                gaussians_dyn.max_radii2D[visibility_filter] = torch.max(
+                    gaussians_dyn.max_radii2D[visibility_filter], radii[visibility_filter]
+                )
 
             # Log and save
             cur_psnr = training_report(
@@ -272,14 +323,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 scene.save(iteration)
                 deform.save_weights(args.model_path, iteration)
 
-            # Densification
+            # Densification for gaussians_dyn
             if iteration < opt.densify_until_iter:
                 viewspace_point_tensor_densify = render_pkg_re[
                     "viewspace_points_densify"
                 ]
-                gaussians_dyn.add_densification_stats(
-                    viewspace_point_tensor_densify, visibility_filter
-                )
+                
+                gaussians_dyn.add_densification_stats(torch.norm(viewspace_point_tensor.grad[: gaussians_dyn.get_xyz.shape[0]][visibility_filter[: gaussians_dyn.get_xyz.shape[0]], :2], dim=-1, keepdim=True), visibility_filter[: gaussians_dyn.get_xyz.shape[0]])
 
                 if (
                     iteration > opt.densify_from_iter
@@ -300,14 +350,50 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 ):
                     gaussians_dyn.reset_opacity()
 
+            # Densification for gaussians_stat
+            if iteration < opt.densify_until_iter and gaussians_stat.get_xyz.shape[0] > 0:
+                viewspace_point_tensor_densify = render_pkg_re[
+                    "viewspace_points_densify"
+                ]
+                
+                gaussians_stat.add_densification_stats(torch.norm(viewspace_point_tensor.grad[-gaussians_stat.get_xyz.shape[0]:][visibility_filter[-gaussians_stat.get_xyz.shape[0]:], :2], dim=-1, keepdim=True), visibility_filter[-gaussians_stat.get_xyz.shape[0]:])
+
+                if (
+                    iteration > opt.densify_from_iter
+                    and iteration % opt.densification_interval == 0
+                ):
+                    size_threshold = (
+                        20 if iteration > opt.opacity_reset_interval else None
+                    )
+                    gaussians_stat.densify_and_prune(
+                        opt.densify_grad_threshold,
+                        0.005,
+                        scene.cameras_extent,
+                        size_threshold,
+                    )
+
+                if iteration % opt.opacity_reset_interval == 0 or (
+                    dataset.white_background and iteration == opt.densify_from_iter
+                ):
+                    gaussians_stat.reset_opacity() 
+
             # Optimizer step
             if iteration < opt.iterations:
                 gaussians_dyn.optimizer.step()
                 gaussians_dyn.update_learning_rate(iteration)
                 deform.optimizer.step()
-                gaussians_dyn.optimizer.zero_grad(set_to_none=True)
+                gaussians_dyn.optimizer.zero_grad(set_to_none=True) 
                 deform.optimizer.zero_grad()
                 deform.update_learning_rate(iteration)
+                if gaussians_stat.get_xyz.shape[0] > 0:
+                    gaussians_stat.optimizer.step()
+                    gaussians_stat.update_learning_rate(iteration)
+                    gaussians_stat.optimizer.zero_grad(set_to_none=True)
+            
+            
+
+            
+
 
     print("Best PSNR = {} in Iteration {}".format(best_psnr, best_iteration))
 
@@ -474,7 +560,7 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=[3_500, 4_000, 4_500, 5_000],
+        default=[3_501, 4_001, 4_501, 5_001],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])

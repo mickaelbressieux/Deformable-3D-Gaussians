@@ -130,6 +130,21 @@ class GaussianModel:
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
+    def create_from_other_gaussian_set(self, xyz, features_dc, features_rest, opacity, scaling, rotation, max_radii2D):
+        self.spatial_lr_scale = 5
+
+        self._xyz = nn.Parameter(xyz.requires_grad_(True))
+        self._features_dc = nn.Parameter(
+            features_dc.requires_grad_(True)
+        )
+        self._features_rest = nn.Parameter(
+            features_rest.requires_grad_(True)
+        )
+        self._scaling = nn.Parameter(scaling.requires_grad_(True))
+        self._rotation = nn.Parameter(rotation.requires_grad_(True))
+        self._opacity = nn.Parameter(opacity.requires_grad_(True))
+        self.max_radii2D = max_radii2D
+
     def training_setup(self, training_args):
         self.percent_dense = training_args.percent_dense
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
@@ -171,6 +186,7 @@ class GaussianModel:
         ]
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
+
         self.xyz_scheduler_args = get_expon_lr_func(
             lr_init=training_args.position_lr_init * self.spatial_lr_scale,
             lr_final=training_args.position_lr_final * self.spatial_lr_scale,
@@ -326,7 +342,7 @@ class GaussianModel:
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
             if group["name"] == name:
-                stored_state = self.optimizer.state.get(group["params"][0], None)
+                stored_state = self.optimizer.state.get(group["params"][0], None) # we get the state of the optimizer 
                 stored_state["exp_avg"] = torch.zeros_like(tensor)
                 stored_state["exp_avg_sq"] = torch.zeros_like(tensor)
 
@@ -401,7 +417,7 @@ class GaussianModel:
 
                 optimizable_tensors[group["name"]] = group["params"][0]
             else:
-                print("Weird practice to check in gaussian_model.py")
+                print(f"Weird practice to check in gaussian_model.py")
                 group["params"][0] = nn.Parameter(
                     torch.cat(
                         (group["params"][0].to(extension_tensor.device), extension_tensor), dim=0
@@ -521,8 +537,8 @@ class GaussianModel:
 
         prune_mask = (self.get_opacity < min_opacity).squeeze()
         if max_screen_size:
-            big_points_vs = self.max_radii2D > max_screen_size
-            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent
+            big_points_vs = self.max_radii2D > max_screen_size # big_points_vs represents the points that are too big in the view space
+            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent # big_poits_ws represents the points that are too big in the world space
             prune_mask = torch.logical_or(
                 torch.logical_or(prune_mask, big_points_vs), big_points_ws
             )
@@ -530,8 +546,13 @@ class GaussianModel:
 
         torch.cuda.empty_cache()
 
-    def add_densification_stats(self, viewspace_point_tensor, update_filter):
+    """def add_densification_stats(self, viewspace_point_tensor, update_filter):
         self.xyz_gradient_accum[update_filter] += torch.norm(
             viewspace_point_tensor.grad[update_filter, :2], dim=-1, keepdim=True
         )
+        self.denom[update_filter] += 1"""
+
+    def add_densification_stats(self, norm_viewspace_point_grad_tensor, update_filter):
+
+        self.xyz_gradient_accum[update_filter] += norm_viewspace_point_grad_tensor
         self.denom[update_filter] += 1

@@ -8,24 +8,31 @@ from sklearn.cluster import KMeans
 import pdb
 
 
-def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2) -> torch.Tensor:
+def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2, type: str = "threshold", threshold: float=0.1) -> torch.Tensor:
     """
     Create a dynamic mask based on the total distance travelled by each gaussians
     :param d_xyz: displacement of each gaussians, size (nb_timesteps, nb_gaussians, 3)
     :return: Mask, size (nb_gaussians)
     """
 
-    dist = torch.norm(d_xyz[1:, :, :] - d_xyz[:-1, :, :], dim=2)
+    can_d_xyz= d_xyz - d_xyz[0, :, :].unsqueeze(0) # set the first timestep as the origin
+
+    dist = torch.norm(can_d_xyz[1:, :, :] - can_d_xyz[:-1, :, :], dim=2)
     dist = torch.sum(dist, dim=0)
 
     dist = dist.cpu().numpy()
 
-    # Use KMeans to find the cluster with the highest distance
-    kmeans = KMeans(n_clusters=nb_clusters, random_state=0).fit(dist.reshape(-1, 1))
+    if type == "kmeans":
+        # Use KMeans to find the cluster with the highest distance
+        kmeans = KMeans(n_clusters=nb_clusters, random_state=0).fit(dist.reshape(-1, 1))
 
-    # find the cluster with the highest distance
-    max_cluster = np.argmax(kmeans.cluster_centers_)
-    mask = kmeans.labels_ == max_cluster
+        # find the cluster with the highest distance
+        max_cluster = np.argmax(kmeans.cluster_centers_)
+        print(f"max displacement of dynamic mask: {np.max(kmeans.cluster_centers_)}")
+        mask = kmeans.labels_ == max_cluster
+    
+    elif type == "threshold":
+        mask = dist > threshold
 
     mask = torch.tensor(mask).to(d_xyz.device)
 
@@ -45,6 +52,7 @@ def identify_rigid_object(
     :param datapath: path to save the rigid motion
     :return: mask, size (nb_gaussians)
     """
+    device = d_xyz.device
     xyz = xyz.cpu().numpy()
     d_xyz = d_xyz.cpu().numpy()
     d_xyz = d_xyz.transpose(1, 2, 0)
@@ -112,7 +120,7 @@ def identify_rigid_object(
     np.save(datapath + "/rigid_t.npy", rigid_t)
     np.save(datapath + "/inliers.npy", inliers)
 
-    rigid_objects = torch.tensor(rigid_objects).to(d_xyz.device)
+    rigid_objects = torch.tensor(rigid_objects).to(device)
 
     return rigid_objects
 
