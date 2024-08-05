@@ -560,7 +560,7 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=[3_501, 4_001, 4_501, 5_001],
+        default=[5_001, 10_001, 15_001],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
