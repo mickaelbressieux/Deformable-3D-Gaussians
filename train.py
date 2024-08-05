@@ -152,14 +152,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 flag_save = True
 
             count += 1
-        with torch.no_grad():
-            if iteration in args.dynamic_seg_iterations:
-                # pdb.set_trace()
-                all_d_xyz = create_all_d_xyz(deform, gaussians.get_xyz, scene)
-                mask = create_dynamic_mask(all_d_xyz)
-                rigid_object = identify_rigid_object(
-                    gaussians.get_xyz, all_d_xyz, args.model_path
-                )
+        
 
         # Render
         render_pkg_re = render(
@@ -244,6 +237,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                     best_iteration = iteration
 
             if iteration in saving_iterations:
+                print(f"number of gaussians: {gaussians.get_xyz.shape[0]}")
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
                 deform.save_weights(args.model_path, iteration)
