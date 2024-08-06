@@ -23,6 +23,8 @@ from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 
+from random import seed, randint
+
 import pdb
 
 from DSU_utils import create_dynamic_mask, identify_rigid_object, create_all_d_xyz
@@ -34,6 +36,11 @@ try:
 except ImportError:
     TENSORBOARD_FOUND = False
 
+seed(42)
+torch.manual_seed(42)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(42)
+
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations):
     flag_pdb = False
@@ -43,9 +50,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
     deform = DeformModel(dataset.is_blender, dataset.is_6dof)
     deform.train_setting(opt)
 
-    scene = Scene(dataset, gaussians_dyn)
+    scene = Scene(dataset, gaussians_dyn, gaussians_stat)
     gaussians_dyn.training_setup(opt)
-    stat_init=False
+    stat_init = False
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -123,17 +130,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
         flag_pdb = False
 
-        if iteration%10==0:
-            print(f"Number of dynamic gaussians: {gaussians_dyn.get_xyz.shape[0]}")
-            print(f"Number of static gaussians: {gaussians_stat.get_xyz.shape[0]}")
-
         with torch.no_grad():
             if iteration in args.dynamic_seg_iterations:
 
                 all_d_xyz = create_all_d_xyz(deform, gaussians_dyn.get_xyz, scene)
 
                 mask = create_dynamic_mask(all_d_xyz)
-                stat_xyz = (gaussians_dyn._xyz+all_d_xyz[0,:,:])[~mask]
+                stat_xyz = (gaussians_dyn._xyz + all_d_xyz[0, :, :])[~mask]
                 stat_scaling = gaussians_dyn._scaling[~mask]
                 stat_rotation = gaussians_dyn._rotation[~mask]
                 stat_features_dc = gaussians_dyn._features_dc[~mask]
@@ -141,9 +144,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 stat_opacity = gaussians_dyn._opacity[~mask]
                 stat_max_radii2D = gaussians_dyn.max_radii2D[~mask]
 
-                
-
-                if not(stat_init):
+                if not (stat_init):
                     gaussians_stat.create_from_other_gaussian_set(
                         stat_xyz,
                         stat_features_dc,
@@ -194,7 +195,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )  # we detach the gaussians to avoid backpropagation through them
 
         # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
-        if iteration in [3501, 4601, 10001, 19001]:
+        if iteration in []:
             count = 0
             name_iter = iteration
 
@@ -208,8 +209,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 flag_save = True
 
             count += 1
-
-        
 
         # Render
 
@@ -245,7 +244,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 name_view=str(rdm_idx),
                 root=args.model_path,
             )
-        
+
         flag_pdb = False
         image, viewspace_point_tensor, visibility_filter, radii = (
             render_pkg_re["render"],
@@ -289,12 +288,18 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
             # Keep track of max radii in image-space for pruning
             if gaussians_stat.get_xyz.shape[0] > 0:
-                torch.cat((gaussians_dyn.max_radii2D, gaussians_stat.max_radii2D), dim=0)[visibility_filter] = torch.max(
-                    torch.cat((gaussians_dyn.max_radii2D, gaussians_stat.max_radii2D), dim=0)[visibility_filter], radii[visibility_filter]
+                torch.cat(
+                    (gaussians_dyn.max_radii2D, gaussians_stat.max_radii2D), dim=0
+                )[visibility_filter] = torch.max(
+                    torch.cat(
+                        (gaussians_dyn.max_radii2D, gaussians_stat.max_radii2D), dim=0
+                    )[visibility_filter],
+                    radii[visibility_filter],
                 )
             else:
                 gaussians_dyn.max_radii2D[visibility_filter] = torch.max(
-                    gaussians_dyn.max_radii2D[visibility_filter], radii[visibility_filter]
+                    gaussians_dyn.max_radii2D[visibility_filter],
+                    radii[visibility_filter],
                 )
 
             # Log and save
@@ -308,6 +313,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 testing_iterations,
                 scene,
                 render,
+                render_two_sets,
                 (pipe, background),
                 deform,
                 dataset.load2gpu_on_the_fly,
@@ -328,8 +334,17 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 viewspace_point_tensor_densify = render_pkg_re[
                     "viewspace_points_densify"
                 ]
-                
-                gaussians_dyn.add_densification_stats(torch.norm(viewspace_point_tensor.grad[: gaussians_dyn.get_xyz.shape[0]][visibility_filter[: gaussians_dyn.get_xyz.shape[0]], :2], dim=-1, keepdim=True), visibility_filter[: gaussians_dyn.get_xyz.shape[0]])
+
+                gaussians_dyn.add_densification_stats(
+                    torch.norm(
+                        viewspace_point_tensor.grad[: gaussians_dyn.get_xyz.shape[0]][
+                            visibility_filter[: gaussians_dyn.get_xyz.shape[0]], :2
+                        ],
+                        dim=-1,
+                        keepdim=True,
+                    ),
+                    visibility_filter[: gaussians_dyn.get_xyz.shape[0]],
+                )
 
                 if (
                     iteration > opt.densify_from_iter
@@ -344,6 +359,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                         scene.cameras_extent,
                         size_threshold,
                     )
+                    print(
+                        f"Number of dynamic gaussians: {gaussians_dyn.get_xyz.shape[0]}"
+                    )
 
                 if iteration % opt.opacity_reset_interval == 0 or (
                     dataset.white_background and iteration == opt.densify_from_iter
@@ -351,12 +369,24 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                     gaussians_dyn.reset_opacity()
 
             # Densification for gaussians_stat
-            if iteration < opt.densify_until_iter and gaussians_stat.get_xyz.shape[0] > 0:
+            if (
+                iteration < opt.densify_until_iter
+                and gaussians_stat.get_xyz.shape[0] > 0
+            ):
                 viewspace_point_tensor_densify = render_pkg_re[
                     "viewspace_points_densify"
                 ]
-                
-                gaussians_stat.add_densification_stats(torch.norm(viewspace_point_tensor.grad[-gaussians_stat.get_xyz.shape[0]:][visibility_filter[-gaussians_stat.get_xyz.shape[0]:], :2], dim=-1, keepdim=True), visibility_filter[-gaussians_stat.get_xyz.shape[0]:])
+
+                gaussians_stat.add_densification_stats(
+                    torch.norm(
+                        viewspace_point_tensor.grad[-gaussians_stat.get_xyz.shape[0] :][
+                            visibility_filter[-gaussians_stat.get_xyz.shape[0] :], :2
+                        ],
+                        dim=-1,
+                        keepdim=True,
+                    ),
+                    visibility_filter[-gaussians_stat.get_xyz.shape[0] :],
+                )
 
                 if (
                     iteration > opt.densify_from_iter
@@ -371,29 +401,27 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                         scene.cameras_extent,
                         size_threshold,
                     )
+                    print(
+                        f"Number of static gaussians: {gaussians_stat.get_xyz.shape[0]}"
+                    )
 
                 if iteration % opt.opacity_reset_interval == 0 or (
                     dataset.white_background and iteration == opt.densify_from_iter
                 ):
-                    gaussians_stat.reset_opacity() 
+                    gaussians_stat.reset_opacity()
 
             # Optimizer step
             if iteration < opt.iterations:
                 gaussians_dyn.optimizer.step()
                 gaussians_dyn.update_learning_rate(iteration)
                 deform.optimizer.step()
-                gaussians_dyn.optimizer.zero_grad(set_to_none=True) 
+                gaussians_dyn.optimizer.zero_grad(set_to_none=True)
                 deform.optimizer.zero_grad()
                 deform.update_learning_rate(iteration)
                 if gaussians_stat.get_xyz.shape[0] > 0:
                     gaussians_stat.optimizer.step()
                     gaussians_stat.update_learning_rate(iteration)
                     gaussians_stat.optimizer.zero_grad(set_to_none=True)
-            
-            
-
-            
-
 
     print("Best PSNR = {} in Iteration {}".format(best_psnr, best_iteration))
 
@@ -431,6 +459,7 @@ def training_report(
     testing_iterations,
     scene: Scene,
     renderFunc,
+    renderFunc2,
     renderArgs,
     deform,
     load2gpu_on_the_fly,
@@ -464,22 +493,39 @@ def training_report(
                     if load2gpu_on_the_fly:
                         viewpoint.load2device()
                     fid = viewpoint.fid
-                    xyz = scene.gaussians.get_xyz
+                    xyz = scene.gaussians_dyn.get_xyz
                     time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
                     d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
-                    image = torch.clamp(
-                        renderFunc(
-                            viewpoint,
-                            scene.gaussians,
-                            *renderArgs,
-                            d_xyz,
-                            d_rotation,
-                            d_scaling,
-                            is_6dof,
-                        )["render"],
-                        0.0,
-                        1.0,
-                    )
+                    pdb.set_trace()
+                    if scene.gaussians_stat.get_xyz.shape[0] > 0:
+                        image = torch.clamp(
+                            renderFunc2(
+                                viewpoint,
+                                scene.gaussians_dyn,
+                                scene.gaussians_stat,
+                                *renderArgs,
+                                d_xyz,
+                                d_rotation,
+                                d_scaling,
+                                is_6dof,
+                            )["render"],
+                            0.0,
+                            1.0,
+                        )
+                    else:
+                        image = torch.clamp(
+                            renderFunc(
+                                viewpoint,
+                                scene.gaussians_dyn,
+                                *renderArgs,
+                                d_xyz,
+                                d_rotation,
+                                d_scaling,
+                                is_6dof,
+                            )["render"],
+                            0.0,
+                            1.0,
+                        )
                     gt_image = torch.clamp(
                         viewpoint.original_image.to("cuda"), 0.0, 1.0
                     )
@@ -525,10 +571,10 @@ def training_report(
 
         if tb_writer:
             tb_writer.add_histogram(
-                "scene/opacity_histogram", scene.gaussians.get_opacity, iteration
+                "scene/opacity_histogram", scene.gaussians_dyn.get_opacity, iteration
             )
             tb_writer.add_scalar(
-                "total_points", scene.gaussians.get_xyz.shape[0], iteration
+                "total_points", scene.gaussians_dyn.get_xyz.shape[0], iteration
             )
         torch.cuda.empty_cache()
 
@@ -560,7 +606,7 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=[5_001, 10_001, 15_001],
+        default=[3_501, 4_501, 15_001],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])

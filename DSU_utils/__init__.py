@@ -8,14 +8,21 @@ from sklearn.cluster import KMeans
 import pdb
 
 
-def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2, type: str = "threshold", threshold: float=0.1) -> torch.Tensor:
+def create_dynamic_mask(
+    d_xyz: torch.Tensor,
+    nb_clusters: int = 2,
+    type: str = "threshold",
+    threshold: float = 0.1,
+) -> torch.Tensor:
     """
     Create a dynamic mask based on the total distance travelled by each gaussians
     :param d_xyz: displacement of each gaussians, size (nb_timesteps, nb_gaussians, 3)
     :return: Mask, size (nb_gaussians)
     """
 
-    can_d_xyz= d_xyz - d_xyz[0, :, :].unsqueeze(0) # set the first timestep as the origin
+    can_d_xyz = d_xyz - d_xyz[0, :, :].unsqueeze(
+        0
+    )  # set the first timestep as the origin
 
     dist = torch.norm(can_d_xyz[1:, :, :] - can_d_xyz[:-1, :, :], dim=2)
     dist = torch.sum(dist, dim=0)
@@ -30,14 +37,14 @@ def create_dynamic_mask(d_xyz: torch.Tensor, nb_clusters: int = 2, type: str = "
         max_cluster = np.argmax(kmeans.cluster_centers_)
         print(f"max displacement of dynamic mask: {np.max(kmeans.cluster_centers_)}")
         mask = kmeans.labels_ == max_cluster
-    
+
     elif type == "threshold":
         mask = dist > threshold
 
     mask = torch.tensor(mask).to(d_xyz.device)
 
-    print(f"Number of gaussians in the dynamic mask: {mask.sum()}")
-    print(f"Number of gaussians not in the dynamic mask: {(~mask).sum()}")
+    # print(f"Number of gaussians in the dynamic mask: {mask.sum()}")
+    # print(f"Number of gaussians not in the dynamic mask: {(~mask).sum()}")
 
     return mask
 

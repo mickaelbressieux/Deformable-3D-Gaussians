@@ -8,6 +8,6 @@
 workon Def3DGS
 
 DATA_DIR=/cluster/project/hilliges/mbressieux/data/cup_novel_view
-LOG=/cluster/project/hilliges/mbressieux/log/cup_novel_view
+LOG=/cluster/project/hilliges/mbressieux/log/cup_novel_view_new
 
 python train.py -s ${DATA_DIR} -m ${LOG} --eval --iterations 20000
