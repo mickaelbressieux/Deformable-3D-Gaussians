@@ -69,10 +69,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         lr_init=0.1, lr_final=1e-15, lr_delay_mult=0.01, max_steps=20000
     )
 
-    # remove any file starting with fid, d_xyz or means3D and ending with .npy
+    """# remove any file starting with fid, d_xyz or means3D and ending with .npy
     os.system("rm " + args.model_path + "/fid*.npy")
     os.system("rm " + args.model_path + "/d_xyz*.npy")
-    os.system("rm " + args.model_path + "/means3D*.npy")
+    os.system("rm " + args.model_path + "/means3D*.npy")"""
 
     name_iter = None
 

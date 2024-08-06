@@ -1039,8 +1039,6 @@ def render_sets(
                 deform,
             )"""
 
-        pdb.set_trace()
-
         if not skip_test:
             render_func(
                 dataset.model_path,
