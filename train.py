@@ -496,7 +496,6 @@ def training_report(
                     xyz = scene.gaussians_dyn.get_xyz
                     time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
                     d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
-                    pdb.set_trace()
                     if scene.gaussians_stat.get_xyz.shape[0] > 0:
                         image = torch.clamp(
                             renderFunc2(
@@ -600,13 +599,13 @@ if __name__ == "__main__":
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[5_000, 7_000, 10_000, 20_000, 30_000, 40000],
+        default=[3_500, 5_000, 7_000, 10_000, 20_000, 30_000, 40000],
     )
     parser.add_argument(
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=[3_501, 4_501, 15_001],
+        default=[4_501, 10_001, 15_001],
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])

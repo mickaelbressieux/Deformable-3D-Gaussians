@@ -19,6 +19,8 @@ from scene.deform_model import DeformModel
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 
+import pdb
+
 
 class Scene:
     gaussians_dyn: GaussianModel
@@ -122,10 +124,27 @@ class Scene:
                     self.model_path,
                     "point_cloud",
                     "iteration_" + str(self.loaded_iter),
-                    "point_cloud.ply",
+                    "point_cloud_dyn.ply",
                 ),
                 og_number_points=len(scene_info.point_cloud.points),
             )
+            if os.path.exists(
+                os.path.join(
+                    self.model_path,
+                    "point_cloud",
+                    "iteration_" + str(self.loaded_iter),
+                    "point_cloud_stat.ply",
+                )
+            ):
+                self.gaussians_stat.load_ply(
+                    os.path.join(
+                        self.model_path,
+                        "point_cloud",
+                        "iteration_" + str(self.loaded_iter),
+                        "point_cloud_stat.ply",
+                    ),
+                    og_number_points=len(scene_info.point_cloud.points),
+                )
         else:
             self.gaussians_dyn.create_from_pcd(
                 scene_info.point_cloud, self.cameras_extent
@@ -135,7 +154,13 @@ class Scene:
         point_cloud_path = os.path.join(
             self.model_path, "point_cloud/iteration_{}".format(iteration)
         )
-        self.gaussians_dyn.save_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
+        self.gaussians_dyn.save_ply(
+            os.path.join(point_cloud_path, "point_cloud_dyn.ply")
+        )
+        if self.gaussians_stat.get_xyz.shape[0] > 0:
+            self.gaussians_stat.save_ply(
+                os.path.join(point_cloud_path, "point_cloud_stat.ply")
+            )
 
     def getTrainCameras(self, scale=1.0):
         return self.train_cameras[scale]

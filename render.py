@@ -14,7 +14,7 @@ from scene import Scene, DeformModel
 import os
 from tqdm import tqdm
 from os import makedirs
-from gaussian_renderer import render
+from gaussian_renderer import render, render_two_sets
 import torchvision
 from utils.general_utils import safe_state
 from utils.pose_utils import pose_spherical, render_wander_path
@@ -492,7 +492,8 @@ def segment_dynamic_gaussian(
     name,
     iteration,
     views,
-    gaussians,
+    gaussians_dyn,
+    gaussians_stat,
     pipeline,
     background,
     deform,
@@ -519,13 +520,15 @@ def segment_dynamic_gaussian(
             view.load2device()
         fid = view.fid
 
+        first_fid = 0
+
         if (idx == 0) and (fid != 0):
             # stop in an error:
             # raise ValueError("The first view should be at time 0")
             print(f"the canonical space is not created at time 0, but at time {fid}")
             first_fid = fid
 
-        xyz = gaussians.get_xyz
+        xyz = gaussians_dyn.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
         flag_segment = True
@@ -538,31 +541,49 @@ def segment_dynamic_gaussian(
         else:
             inliers = None
 
-        results = render(
-            view,
-            gaussians,
-            pipeline,
-            background,
-            d_xyz,
-            d_rotation,
-            d_scaling,
-            is_6dof,
-            flag_segment=flag_segment,
-            can_d_xyz=d_xyz - orig_d_xyz,
-            root=args.model_path,
-            name_iter=str(iteration),
-            name_view=str(idx),
-            inliers=inliers,
-        )
+        if gaussians_stat.get_xyz.shape[0] > 0:
+            results = render_two_sets(
+                view,
+                gaussians_dyn,
+                gaussians_stat,
+                pipeline,
+                background,
+                d_xyz,
+                d_rotation,
+                d_scaling,
+                is_6dof,
+                flag_segment=flag_segment,
+                can_d_xyz=d_xyz - orig_d_xyz,
+                root=args.model_path,
+                name_iter=str(iteration),
+                name_view=str(idx),
+                inliers=inliers,
+            )
+        else:
+            results = render(
+                view,
+                gaussians_dyn,
+                pipeline,
+                background,
+                d_xyz,
+                d_rotation,
+                d_scaling,
+                is_6dof,
+                flag_segment=flag_segment,
+                can_d_xyz=d_xyz - orig_d_xyz,
+                root=args.model_path,
+                name_iter=str(iteration),
+                name_view=str(idx),
+                inliers=inliers,
+            )
         rendering = results["render"]
         depth = results["depth"]
         depth = depth / (depth.max() + 1e-5)
 
-
         if fid == first_fid:
             # create the canonical space at first time step
             can_means3D = results["means3D"]
-            can_xyz = gaussians.get_xyz  # for debugging
+            can_xyz = gaussians_dyn.get_xyz  # for debugging
             can_rotation = results["rotation"]
             can_scaling = results["scaling"]
 
@@ -969,8 +990,15 @@ def render_sets(
 ):
 
     with torch.no_grad():
-        gaussians = GaussianModel(dataset.sh_degree)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+        gaussians_dyn = GaussianModel(dataset.sh_degree)
+        gaussians_stat = GaussianModel(dataset.sh_degree)
+        scene = Scene(
+            dataset,
+            gaussians_dyn,
+            gaussians_stat,
+            load_iteration=iteration,
+            shuffle=False,
+        )
         deform = DeformModel(dataset.is_blender, dataset.is_6dof)
         deform.load_weights(dataset.model_path)
 
@@ -996,7 +1024,7 @@ def render_sets(
         else:
             render_func = interpolate_all
 
-        if not skip_train:
+        """if not skip_train:
             render_func(
                 dataset.model_path,
                 dataset.load2gpu_on_the_fly,
@@ -1004,11 +1032,14 @@ def render_sets(
                 "train",
                 scene.loaded_iter,
                 scene.getTrainCameras(),
-                gaussians,
+                gaussians_dyn,
+                gaussians_stat,
                 pipeline,
                 background,
                 deform,
-            )
+            )"""
+
+        pdb.set_trace()
 
         if not skip_test:
             render_func(
@@ -1018,7 +1049,8 @@ def render_sets(
                 "test",
                 scene.loaded_iter,
                 scene.getTestCameras(),
-                gaussians,
+                gaussians_dyn,
+                gaussians_stat,
                 pipeline,
                 background,
                 deform,
