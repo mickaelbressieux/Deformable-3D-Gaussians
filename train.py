@@ -337,9 +337,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
                 gaussians_dyn.add_densification_stats(
                     torch.norm(
-                        viewspace_point_tensor.grad[: gaussians_dyn.get_xyz.shape[0]][
-                            visibility_filter[: gaussians_dyn.get_xyz.shape[0]], :2
-                        ],
+                        viewspace_point_tensor_densify.grad[
+                            : gaussians_dyn.get_xyz.shape[0]
+                        ][visibility_filter[: gaussians_dyn.get_xyz.shape[0]], :2],
                         dim=-1,
                         keepdim=True,
                     ),
@@ -379,9 +379,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
                 gaussians_stat.add_densification_stats(
                     torch.norm(
-                        viewspace_point_tensor.grad[-gaussians_stat.get_xyz.shape[0] :][
-                            visibility_filter[-gaussians_stat.get_xyz.shape[0] :], :2
-                        ],
+                        viewspace_point_tensor_densify.grad[
+                            -gaussians_stat.get_xyz.shape[0] :
+                        ][visibility_filter[-gaussians_stat.get_xyz.shape[0] :], :2],
                         dim=-1,
                         keepdim=True,
                     ),
