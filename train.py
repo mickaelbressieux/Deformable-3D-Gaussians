@@ -266,8 +266,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             # New loss term to keep d_xyz close to zero using L1 loss
             Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
 
+            Lscaling = torch.mean(torch.abs(d_scaling))
+
+            Lrotation = torch.mean(torch.abs(d_rotation))
+
             loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (
-                1.0 - ssim(image, gt_image) + opt.lambda_dxyz * Ldxyz
+                1.0
+                - ssim(image, gt_image)
+                + opt.lambda_dxyz * Ldxyz
+                + opt.lambda_scaling * Lscaling
+                + opt.lambda_rotation * Lrotation
             )
 
         loss.backward()
