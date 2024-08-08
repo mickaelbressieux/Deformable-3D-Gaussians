@@ -1024,7 +1024,7 @@ def render_sets(
         else:
             render_func = interpolate_all
 
-        """if not skip_train:
+        if not skip_train:
             render_func(
                 dataset.model_path,
                 dataset.load2gpu_on_the_fly,
@@ -1037,7 +1037,7 @@ def render_sets(
                 pipeline,
                 background,
                 deform,
-            )"""
+            )
 
         if not skip_test:
             render_func(

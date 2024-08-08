@@ -83,6 +83,8 @@ def load_K_Rt_from_P(filename, P=None):
 
 
 def getNerfppNorm(cam_info):
+    # Get the center and diagonal of the bounding box of the cameras
+
     def get_center_and_diag(cam_centers):
         cam_centers = np.hstack(cam_centers)
         avg_cam_center = np.mean(cam_centers, axis=1, keepdims=True)

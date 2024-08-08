@@ -6,6 +6,6 @@
 #SBATCH  -n 4
 #SBATCH  --mem-per-cpu=10000
 
-LOG=/cluster/project/hilliges/mbressieux/log/CapstoneProj/chickchicken
+LOG=/cluster/project/hilliges/mbressieux/log/Def3DGS/test_cup
 
-python render.py -m ${LOG} --mode segment --skip_test
+python render.py -m ${LOG} --mode segment --eval

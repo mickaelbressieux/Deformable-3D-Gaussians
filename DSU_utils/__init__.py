@@ -10,38 +10,78 @@ import pdb
 
 def create_dynamic_mask(
     d_xyz: torch.Tensor,
+    d_scalings: torch.Tensor,
+    nb_gaussians_stat: int,
     nb_clusters: int = 2,
     type: str = "threshold",
-    threshold: float = 0.1,
+    threshold_d_xyz: float = 0.0001,
+    threshold_d_scalings: float = 0.0001,
 ) -> torch.Tensor:
     """
     Create a dynamic mask based on the total distance travelled by each gaussians
     :param d_xyz: displacement of each gaussians, size (nb_timesteps, nb_gaussians, 3)
+    :param d_scalings: scaling of each gaussians, size (nb_timesteps, nb_gaussians, 3)
     :return: Mask, size (nb_gaussians)
     """
 
-    can_d_xyz = d_xyz - d_xyz[0, :, :].unsqueeze(
-        0
-    )  # set the first timestep as the origin
+    dist = torch.norm(d_xyz[1:, :, :] - d_xyz[:-1, :, :], dim=2)
+    dist = torch.max(dist, dim=0)
 
-    dist = torch.norm(can_d_xyz[1:, :, :] - can_d_xyz[:-1, :, :], dim=2)
-    dist = torch.sum(dist, dim=0)
-
-    dist = dist.cpu().numpy()
+    scale = torch.norm(d_scalings[1:, :, :] - d_scalings[:-1, :, :], dim=2)
+    scale = torch.max(scale, dim=0)
 
     if type == "kmeans":
+        dist = dist.cpu().numpy()
+        scale = scale.cpu().numpy()
+
         # Use KMeans to find the cluster with the highest distance
-        kmeans = KMeans(n_clusters=nb_clusters, random_state=0).fit(dist.reshape(-1, 1))
+        kmeans_d_xyz = KMeans(n_clusters=nb_clusters, random_state=0).fit(
+            dist.reshape(-1, 1)
+        )
+        kmeans_d_scalings = KMeans(n_clusters=nb_clusters, random_state=0).fit(
+            scale.reshape(-1, 1)
+        )
 
         # find the cluster with the highest distance
-        max_cluster = np.argmax(kmeans.cluster_centers_)
-        print(f"max displacement of dynamic mask: {np.max(kmeans.cluster_centers_)}")
-        mask = kmeans.labels_ == max_cluster
+        max_cluster_d_xyz = np.argmax(kmeans_d_xyz.cluster_centers_)
+        max_cluster_d_scalings = np.argmax(kmeans_d_scalings.cluster_centers_)
+
+        print(
+            f"max displacement of dynamic mask: {np.max(kmeans_d_xyz.cluster_centers_)}"
+        )
+        print(
+            f"max scaling of dynamic mask: {np.max(kmeans_d_scalings.cluster_centers_)}"
+        )
+
+        mask = (kmeans_d_xyz.labels_ == max_cluster_d_xyz) & (
+            kmeans_d_scalings.labels_ == max_cluster_d_scalings
+        )
 
     elif type == "threshold":
-        mask = dist > threshold
+        if (threshold_d_xyz < dist[0].min()) and (
+            threshold_d_scalings < scale[0].min()
+        ):
+            # set the threshold to the 5th percentile
+            threshold_d_xyz = torch.quantile(dist[0], 0.05)
+            threshold_d_scalings = torch.quantile(scale[0], 0.05)
+            print(
+                f"Thresholds are too low. Setting them to the 5th percentile: {threshold_d_xyz}, {threshold_d_scalings}"
+            )
+        mask = (dist[0] > threshold_d_xyz) & (scale[0] > threshold_d_scalings)
 
-    mask = torch.tensor(mask).to(d_xyz.device)
+        if mask.sum() < (nb_gaussians_stat / 100) * 5:
+            print("Too few gaussians in the dynamic mask. skipping split")
+            mask = torch.ones_like(mask)
+            mask = mask.bool()
+            return mask
+
+        if mask.sum() < (mask.shape[0] / 100) * 5:
+            print("Too few gaussians in the dynamic mask. reducing threshold")
+            threshold_d_xyz = torch.quantile(dist[0], 0.97)
+            threshold_d_scalings = torch.quantile(scale[0], 0.97)
+            mask = (dist[0] > threshold_d_xyz) | (
+                scale[0] > threshold_d_scalings
+            )  # using or instead of and to get more gaussians
 
     # print(f"Number of gaussians in the dynamic mask: {mask.sum()}")
     # print(f"Number of gaussians not in the dynamic mask: {(~mask).sum()}")
@@ -132,7 +172,7 @@ def identify_rigid_object(
     return rigid_objects
 
 
-def create_all_d_xyz(deform, xyz, scene):
+def create_all_d(deform, xyz, scene):
     viewpoint_stack = scene.getTrainCameras().copy()
     timestamps = []
     for view in viewpoint_stack:
@@ -140,22 +180,24 @@ def create_all_d_xyz(deform, xyz, scene):
     timestamps.sort()
 
     all_d_xyz = []
+    all_d_scalings = []
+    all_d_rotations = []
 
     for fid in timestamps:
         N = xyz.shape[0]
-        time_input = fid.unsqueeze(0).expand(
-            N, -1
-        )  # take the frame id and expand it to the number of gaussians.
+        time_input = fid.unsqueeze(0).expand(N, -1)
 
-        d_xyz, _, _ = deform.step(
-            xyz.detach(), time_input
-        )  # we detach the gaussians to avoid backpropagation through them
+        d_xyz, d_scalings, d_rotations = deform.step(xyz.detach(), time_input)
 
         all_d_xyz.append(d_xyz)
+        all_d_scalings.append(d_scalings)
+        all_d_rotations.append(d_rotations)
 
     all_d_xyz = torch.stack(all_d_xyz, dim=0).to(xyz.device)
+    all_d_scalings = torch.stack(all_d_scalings, dim=0).to(xyz.device)
+    all_d_rotations = torch.stack(all_d_rotations, dim=0).to(xyz.device)
 
-    return all_d_xyz
+    return all_d_xyz, all_d_scalings, all_d_rotations
 
 
 class Ransac_Def3DGS:

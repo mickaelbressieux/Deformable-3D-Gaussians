@@ -27,7 +27,7 @@ from random import seed, randint
 
 import pdb
 
-from DSU_utils import create_dynamic_mask, identify_rigid_object, create_all_d_xyz
+from DSU_utils import create_dynamic_mask, identify_rigid_object, create_all_d
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -133,9 +133,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         with torch.no_grad():
             if iteration in args.dynamic_seg_iterations:
 
-                all_d_xyz = create_all_d_xyz(deform, gaussians_dyn.get_xyz, scene)
+                all_d_xyz, all_d_scalings, all_d_rotations = create_all_d(
+                    deform, gaussians_dyn.get_xyz, scene
+                )
 
-                mask = create_dynamic_mask(all_d_xyz)
+                mask = create_dynamic_mask(
+                    all_d_xyz, all_d_scalings, gaussians_stat.get_xyz.shape[0]
+                )
                 stat_xyz = (gaussians_dyn._xyz + all_d_xyz[0, :, :])[~mask]
                 stat_scaling = gaussians_dyn._scaling[~mask]
                 stat_rotation = gaussians_dyn._rotation[~mask]
@@ -195,7 +199,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )  # we detach the gaussians to avoid backpropagation through them
 
         # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
-        if iteration in []:
+        if iteration in [4_501, 10_001, 19_001]:
             count = 0
             name_iter = iteration
 
@@ -613,7 +617,7 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=[4_501, 10_001, 15_001],
+        default=list(range(3_501, 15_001, 1000)),
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
