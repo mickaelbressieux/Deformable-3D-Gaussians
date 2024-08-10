@@ -187,11 +187,6 @@ def render(
     else:
         colors_precomp = override_color
 
-    if flag_save:
-        flag_segment = True
-        save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
-        save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
-
     if inliers is not None:
         # inliers is a tensor of size (N) with 0s, 1s, 2s, etc depending on the number of object considered
         # let s render them separately
@@ -360,6 +355,7 @@ def render(
         "rotation": rotations,
     }
 
+
 def render_two_sets(
     viewpoint_camera,
     pc_dyn: GaussianModel,
@@ -380,6 +376,7 @@ def render_two_sets(
     root=".",
     inliers=None,
     flag_pdb=False,
+    render_full_moving_stat=False,
 ):
     """
     Render the scene using two sets of gaussians. One set is dynamic and the other is static.
@@ -390,13 +387,19 @@ def render_two_sets(
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
     screenspace_points = (
         torch.zeros_like(
-            torch.cat((pc_dyn.get_xyz, pc_stat.get_xyz), dim=0), dtype=pc_dyn.get_xyz.dtype, requires_grad=True, device="cuda"
+            torch.cat((pc_dyn.get_xyz, pc_stat.get_xyz), dim=0),
+            dtype=pc_dyn.get_xyz.dtype,
+            requires_grad=True,
+            device="cuda",
         )
         + 0
     )
     screenspace_points_densify = (
         torch.zeros_like(
-            torch.cat((pc_dyn.get_xyz, pc_stat.get_xyz), dim=0), dtype=pc_dyn.get_xyz.dtype, requires_grad=True, device="cuda"
+            torch.cat((pc_dyn.get_xyz, pc_stat.get_xyz), dim=0),
+            dtype=pc_dyn.get_xyz.dtype,
+            requires_grad=True,
+            device="cuda",
         )
         + 0
     )
@@ -426,14 +429,22 @@ def render_two_sets(
     )
 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
-    
+
     if is_6dof:
         if torch.is_tensor(d_xyz) is False:
             means3D = torch.cat((pc_dyn.get_xyz, pc_stat.get_xyz), dim=0)
         else:
-            means3D = torch.cat((from_homogenous(
-                torch.bmm(d_xyz, to_homogenous(pc_dyn.get_xyz).unsqueeze(-1)).squeeze(-1)
-            ), pc_stat.get_xyz), dim=0)
+            means3D = torch.cat(
+                (
+                    from_homogenous(
+                        torch.bmm(
+                            d_xyz, to_homogenous(pc_dyn.get_xyz).unsqueeze(-1)
+                        ).squeeze(-1)
+                    ),
+                    pc_stat.get_xyz,
+                ),
+                dim=0,
+            )
     else:
         means3D = torch.cat((pc_dyn.get_xyz + d_xyz, pc_stat.get_xyz), dim=0)
     opacity = torch.cat((pc_dyn.get_opacity, pc_stat.get_opacity), dim=0)
@@ -448,8 +459,9 @@ def render_two_sets(
         cov3D_precomp = pc_dyn.get_covariance(scaling_modifier)
     else:
         scales = torch.cat((pc_dyn.get_scaling + d_scaling, pc_stat.get_scaling), dim=0)
-        rotations = torch.cat((pc_dyn.get_rotation + d_rotation, pc_stat.get_rotation), dim=0)
-
+        rotations = torch.cat(
+            (pc_dyn.get_rotation + d_rotation, pc_stat.get_rotation), dim=0
+        )
 
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
@@ -457,8 +469,8 @@ def render_two_sets(
     colors_precomp = None
     if colors_precomp is None:
         if pipe.convert_SHs_python:
-            #LEFT OUT FOR NOW
-            assert 1!=1, "Not implemented"
+            # LEFT OUT FOR NOW
+            assert 1 != 1, "Not implemented"
             shs_view = pc_dyn.get_features.transpose(1, 2).view(
                 -1, 3, (pc_dyn.max_sh_degree + 1) ** 2
             )
@@ -469,16 +481,11 @@ def render_two_sets(
             sh2rgb = eval_sh(pc_dyn.active_sh_degree, shs_view, dir_pp_normalized)
             colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
         else:
-            shs =torch.cat((pc_dyn.get_features, pc_stat.get_features), dim=0)
+            shs = torch.cat((pc_dyn.get_features, pc_stat.get_features), dim=0)
     else:
         # Not implemented
-        assert 1!=1, "Not implemented"
+        assert 1 != 1, "Not implemented"
         colors_precomp = override_color
-
-    if flag_save:
-        flag_segment = True
-        #save_npy(means3D, "means3D_" + name_iter + ".npy", root=root)
-        #save_npy(d_xyz, "d_xyz_" + name_iter + ".npy", root=root)
 
     if inliers is not None:
         # inliers is a tensor of size (N) with 0s, 1s, 2s, etc depending on the number of object considered
@@ -523,12 +530,12 @@ def render_two_sets(
                 + ".png",
             )
 
-    if flag_segment:
+    if render_full_moving_stat:
         with torch.no_grad():
-            
-            #create a mask using only gaussians originating from the dynamic set
+
+            # create a mask using only gaussians originating from the dynamic set
             mask = torch.zeros(means3D.shape[0], device="cuda")
-            mask[:pc_dyn.get_xyz.shape[0]] = 1
+            mask[: pc_dyn.get_xyz.shape[0]] = 1
             mask = mask.bool()
 
             # create rendered image with only those gaussians that are in the top 10% of the d_norm values
@@ -570,7 +577,7 @@ def render_two_sets(
         cov3D_precomp=cov3D_precomp,
     )
 
-    if flag_segment:
+    if render_full_moving_stat:
         with torch.no_grad():
             # if rendering folder does not exist, create it
             if not os.path.exists(root + "/rendering"):
@@ -631,7 +638,6 @@ def render_two_sets(
         "scaling": scales,
         "rotation": rotations,
     }
-
 
 
 def getTopPercentageIndices(d_norm, percentage=0.15):

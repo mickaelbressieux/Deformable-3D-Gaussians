@@ -14,8 +14,8 @@ def create_dynamic_mask(
     nb_gaussians_stat: int,
     nb_clusters: int = 2,
     type: str = "threshold",
-    threshold_d_xyz: float = 0.0001,
-    threshold_d_scalings: float = 0.0001,
+    threshold_d_xyz: float = 0.01,
+    threshold_d_scalings: float = 0.01,
 ) -> torch.Tensor:
     """
     Create a dynamic mask based on the total distance travelled by each gaussians
@@ -23,12 +23,17 @@ def create_dynamic_mask(
     :param d_scalings: scaling of each gaussians, size (nb_timesteps, nb_gaussians, 3)
     :return: Mask, size (nb_gaussians)
     """
+    method = "sum"
 
     dist = torch.norm(d_xyz[1:, :, :] - d_xyz[:-1, :, :], dim=2)
-    dist = torch.max(dist, dim=0)
-
     scale = torch.norm(d_scalings[1:, :, :] - d_scalings[:-1, :, :], dim=2)
-    scale = torch.max(scale, dim=0)
+
+    if method == "sum":
+        dist = torch.sum(dist, dim=0)
+        scale = torch.sum(scale, dim=0)
+    if method == "max":
+        dist = torch.max(dist, dim=0)[0]
+        scale = torch.max(scale, dim=0)[0]
 
     if type == "kmeans":
         dist = dist.cpu().numpy()
@@ -58,16 +63,14 @@ def create_dynamic_mask(
         )
 
     elif type == "threshold":
-        if (threshold_d_xyz < dist[0].min()) and (
-            threshold_d_scalings < scale[0].min()
-        ):
+        if (threshold_d_xyz < dist.min()) and (threshold_d_scalings < scale.min()):
             # set the threshold to the 5th percentile
-            threshold_d_xyz = torch.quantile(dist[0], 0.05)
-            threshold_d_scalings = torch.quantile(scale[0], 0.05)
+            threshold_d_xyz = torch.quantile(dist, 0.05)
+            threshold_d_scalings = torch.quantile(scale, 0.05)
             print(
                 f"Thresholds are too low. Setting them to the 5th percentile: {threshold_d_xyz}, {threshold_d_scalings}"
             )
-        mask = (dist[0] > threshold_d_xyz) & (scale[0] > threshold_d_scalings)
+        mask = (dist > threshold_d_xyz) & (scale > threshold_d_scalings)
 
         if mask.sum() < (nb_gaussians_stat / 100) * 5:
             print("Too few gaussians in the dynamic mask. skipping split")
@@ -75,12 +78,12 @@ def create_dynamic_mask(
             mask = mask.bool()
             return mask
 
-        if mask.sum() < (mask.shape[0] / 100) * 5:
+        if mask.sum() < (mask.shape[0] / 100) * 50:
             print("Too few gaussians in the dynamic mask. reducing threshold")
-            threshold_d_xyz = torch.quantile(dist[0], 0.97)
-            threshold_d_scalings = torch.quantile(scale[0], 0.97)
-            mask = (dist[0] > threshold_d_xyz) | (
-                scale[0] > threshold_d_scalings
+            threshold_d_xyz = torch.quantile(dist, 0.6)
+            threshold_d_scalings = torch.quantile(scale, 0.6)
+            mask = (dist > threshold_d_xyz) | (
+                scale > threshold_d_scalings
             )  # using or instead of and to get more gaussians
 
     # print(f"Number of gaussians in the dynamic mask: {mask.sum()}")
@@ -111,6 +114,8 @@ def identify_rigid_object(
 
     nb_rigid_motions = 4
 
+    error_threshold = 0.005
+
     inliers_arr = []
     rigid_rot = []
     rigid_t = []
@@ -124,7 +129,11 @@ def identify_rigid_object(
 
         # step 2: use RANSAC to find the rotation and translation that best fit the data
         ransac = Ransac_Def3DGS(
-            xyz, d_xyz, error_threshold=0.04, num_samples=num_samples, max_trials=3
+            xyz,
+            d_xyz,
+            error_threshold=error_threshold,
+            num_samples=num_samples,
+            max_trials=3,
         )
         R, t = ransac.fit()
 
@@ -198,6 +207,22 @@ def create_all_d(deform, xyz, scene):
     all_d_rotations = torch.stack(all_d_rotations, dim=0).to(xyz.device)
 
     return all_d_xyz, all_d_scalings, all_d_rotations
+
+
+def get_first_d(deform, xyz, scene):
+    viewpoint_stack = scene.getTrainCameras().copy()
+    timestamps = []
+    for view in viewpoint_stack:
+        timestamps.append(view.fid)
+    timestamps.sort()
+
+    fid = timestamps[0]
+    N = xyz.shape[0]
+    time_input = fid.unsqueeze(0).expand(N, -1)
+
+    d_xyz, d_rotations, d_scalings = deform.step(xyz.detach(), time_input)
+
+    return d_xyz, d_scalings, d_rotations
 
 
 class Ransac_Def3DGS:

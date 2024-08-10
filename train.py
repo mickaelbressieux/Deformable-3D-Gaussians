@@ -27,7 +27,12 @@ from random import seed, randint
 
 import pdb
 
-from DSU_utils import create_dynamic_mask, identify_rigid_object, create_all_d
+from DSU_utils import (
+    create_dynamic_mask,
+    identify_rigid_object,
+    create_all_d,
+    get_first_d,
+)
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -178,6 +183,15 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
                 flag_pdb = True
 
+            rigid_object = None
+            if iteration in args.rigid_object_iterations:
+                all_d_xyz, all_d_scalings, all_d_rotations = create_all_d(
+                    deform, gaussians_dyn.get_xyz, scene
+                )
+                rigid_object = identify_rigid_object(
+                    gaussians_dyn.get_xyz, all_d_xyz, args.model_path
+                )
+
         fid = viewpoint_cam.fid  # Frame ID
 
         if iteration < opt.warm_up:
@@ -198,24 +212,18 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 gaussians_dyn.get_xyz.detach(), time_input + ast_noise
             )  # we detach the gaussians to avoid backpropagation through them
 
-        # set the flag to true to trigger pdb if iteration is 3501, 5001, 10001, 19001
-        if iteration in [4_501, 10_001, 19_001]:
+        if iteration in args.render_intermediate:
             count = 0
-            name_iter = iteration
+            name_iter = iteration  # used for labeling the rendered images
 
-        flag_save = False
-
+        render_full_moving_stat = False
         if "count" in locals():
-            # save the fid, d_xyz and means3D for 100 iterations (DSU project)
+            # save the fid, d_xyz and means3D until the gaussians are densified (cannot save different number of gaussians together)
             if count < opt.densification_interval:
-                name = "fid_" + str(name_iter) + ".npy"
-                save_npy(fid, name, root=args.model_path)
-                flag_save = True
-
+                render_full_moving_stat = True
             count += 1
 
         # Render
-
         if gaussians_stat.get_xyz.shape[0] > 0:
             render_pkg_re = render_two_sets(
                 viewpoint_cam,
@@ -227,11 +235,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 d_rotation,
                 d_scaling,
                 dataset.is_6dof,
-                flag_save=flag_save,
                 name_iter=str(name_iter),
                 name_view=str(rdm_idx),
                 root=args.model_path,
                 flag_pdb=flag_pdb,
+                render_full_moving_stat=render_full_moving_stat,
+                inliers=rigid_object,
             )
         else:
             render_pkg_re = render(
@@ -243,11 +252,50 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 d_rotation,
                 d_scaling,
                 dataset.is_6dof,
-                flag_save=flag_save,
                 name_iter=str(name_iter),
                 name_view=str(rdm_idx),
                 root=args.model_path,
+                inliers=rigid_object,
             )
+
+        with torch.no_grad():
+            if iteration in args.save_npy:
+                name_iter_save = iteration
+                # if the npy file already exists, delete it
+                if os.path.exists(
+                    args.model_path + "/fid_" + str(name_iter_save) + ".npy"
+                ):
+                    os.remove(args.model_path + "/fid_" + str(name_iter_save) + ".npy")
+                if os.path.exists(
+                    args.model_path + "/means3D_" + str(name_iter_save) + ".npy"
+                ):
+                    os.remove(
+                        args.model_path + "/means3D_" + str(name_iter_save) + ".npy"
+                    )
+                if os.path.exists(
+                    args.model_path + "/d_xyz_" + str(name_iter_save) + ".npy"
+                ):
+                    os.remove(
+                        args.model_path + "/d_xyz_" + str(name_iter_save) + ".npy"
+                    )
+                counter_save = 0
+
+            if "counter_save" in locals():
+                if counter_save < opt.densification_interval:
+                    save_npy(
+                        fid, "fid_" + str(name_iter_save) + ".npy", root=args.model_path
+                    )
+                    save_npy(
+                        render_pkg_re["means3D"],
+                        "means3D_" + str(name_iter_save) + ".npy",
+                        root=args.model_path,
+                    )
+                    save_npy(
+                        d_xyz,
+                        "d_xyz_" + str(name_iter_save) + ".npy",
+                        root=args.model_path,
+                    )
+                    counter_save += 1
 
         flag_pdb = False
         image, viewspace_point_tensor, visibility_filter, radii = (
@@ -268,6 +316,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )
         else:
             # New loss term to keep d_xyz close to zero using L1 loss
+
+            """d_xyz_0, d_scaling_0, d_rotation_0 = get_first_d(
+                deform, gaussians_dyn.get_xyz, scene
+            )"""
+
             Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
 
             Lscaling = torch.mean(torch.abs(d_scaling))
@@ -611,14 +664,23 @@ if __name__ == "__main__":
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[3_500, 5_000, 7_000, 10_000, 20_000, 30_000, 40000],
+        default=[5_000, 7_000, 10_000, 20_000, 30_000, 40000],
     )
     parser.add_argument(
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=list(range(3_501, 15_001, 1000)),
+        default=list(range(10_001, 15_001, 1000)),
     )
+    parser.add_argument(
+        "--rigid_object_iterations",
+        nargs="+",
+        type=int,
+        default=list(range(5000, 40001, 3000)),
+    )
+    parser.add_argument("--save_npy", nargs="+", type=int, default=[])
+
+    parser.add_argument("--render_intermediate", nargs="+", type=int, default=[])
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)

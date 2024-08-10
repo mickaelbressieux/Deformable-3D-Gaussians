@@ -8,4 +8,4 @@
 
 LOG=/cluster/project/hilliges/mbressieux/log/HOI4D/HOI4D_video5_nerfied
 
-python render.py -m ${LOG} --mode segment --skip_test
+python render.py -m ${LOG} --mode segment --iteration 30000

@@ -531,7 +531,7 @@ def segment_dynamic_gaussian(
         xyz = gaussians_dyn.get_xyz
         time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
         d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
-        flag_segment = True
+        render_full_moving_stat = True
 
         if fid == first_fid:
             orig_d_xyz = d_xyz
@@ -552,12 +552,12 @@ def segment_dynamic_gaussian(
                 d_rotation,
                 d_scaling,
                 is_6dof,
-                flag_segment=flag_segment,
                 can_d_xyz=d_xyz - orig_d_xyz,
                 root=args.model_path,
                 name_iter=str(iteration),
                 name_view=str(idx),
                 inliers=inliers,
+                render_full_moving_stat=render_full_moving_stat,
             )
         else:
             results = render(
@@ -597,7 +597,6 @@ def segment_dynamic_gaussian(
 
         else:
             # compute the displacement in canonical space
-            #
             new_d_xyz.append(d_xyz.cpu().numpy() - can_d_xyz)
             new_d_rotation.append(d_rotation.cpu().numpy() - can_d_rotation)
             new_d_scaling.append(d_scaling.cpu().numpy() - can_d_scaling)

@@ -7,7 +7,7 @@
 #SBATCH  --mem-per-cpu=10000
 workon Def3DGS
 
-DATA_DIR=/cluster/project/hilliges/mbressieux/data/cup_novel_view
+DATA_DIR=/cluster/project/hilliges/mbressieux/data/NeRF/cup_novel_view
 LOG=/cluster/project/hilliges/mbressieux/log/Def3DGS/test_cup
 
 python train.py -s ${DATA_DIR} -m ${LOG} --eval --iterations 20000
