@@ -1,92 +1,0 @@
-/var/spool/slurm/slurmd/state/job1072960/slurm_script: line 8: workon: command not found
-Looking for config file in /cluster/project/hilliges/mbressieux/log/chickchicken/cfg_args
-Config file found: /cluster/project/hilliges/mbressieux/log/chickchicken/cfg_args
-Rendering /cluster/project/hilliges/mbressieux/log/chickchicken
-Loading trained model at iteration 20000 [03/07 19:05:07]
-Found dataset.json file, assuming Nerfies data set! [03/07 19:05:07]
-Reading Nerfies Info [03/07 19:05:07]
- [03/07 19:05:13]
-Loading Training Cameras [03/07 19:05:13]
-Loading Test Cameras [03/07 19:05:15]
-Rendering progress - segmenting:   0%|          | 0/114 [00:00<?, ?it/s]Rendering progress - segmenting:   1%|          | 1/114 [00:13<26:01, 13.82s/it]Rendering progress - segmenting:   2%|▏         | 2/114 [00:25<23:53, 12.80s/it]Rendering progress - segmenting:   3%|▎         | 3/114 [00:38<23:16, 12.58s/it]Rendering progress - segmenting:   4%|▎         | 4/114 [00:50<22:50, 12.46s/it]Rendering progress - segmenting:   4%|▍         | 5/114 [01:02<22:37, 12.45s/it]Rendering progress - segmenting:   5%|▌         | 6/114 [01:15<22:24, 12.45s/it]Rendering progress - segmenting:   6%|▌         | 7/114 [01:28<22:19, 12.52s/it]Rendering progress - segmenting:   7%|▋         | 8/114 [01:40<22:15, 12.59s/it]Rendering progress - segmenting:   8%|▊         | 9/114 [01:53<22:18, 12.75s/it]Rendering progress - segmenting:   9%|▉         | 10/114 [02:06<22:09, 12.78s/it]Rendering progress - segmenting:  10%|▉         | 11/114 [02:19<22:06, 12.88s/it]Rendering progress - segmenting:  11%|█         | 12/114 [02:32<22:00, 12.95s/it]Rendering progress - segmenting:  11%|█▏        | 13/114 [02:46<21:55, 13.03s/it]Rendering progress - segmenting:  12%|█▏        | 14/114 [02:59<21:53, 13.14s/it]Rendering progress - segmenting:  13%|█▎        | 15/114 [03:13<21:51, 13.25s/it]Rendering progress - segmenting:  14%|█▍        | 16/114 [03:26<21:48, 13.35s/it]Rendering progress - segmenting:  15%|█▍        | 17/114 [03:40<21:43, 13.44s/it]Rendering progress - segmenting:  16%|█▌        | 18/114 [03:54<21:39, 13.54s/it]Rendering progress - segmenting:  17%|█▋        | 19/114 [04:08<21:38, 13.67s/it]Rendering progress - segmenting:  18%|█▊        | 20/114 [04:22<21:34, 13.77s/it]Rendering progress - segmenting:  18%|█▊        | 21/114 [04:36<21:38, 13.96s/it]Rendering progress - segmenting:  19%|█▉        | 22/114 [04:50<21:29, 14.02s/it]Rendering progress - segmenting:  20%|██        | 23/114 [05:04<21:25, 14.13s/it]Rendering progress - segmenting:  21%|██        | 24/114 [05:19<21:19, 14.21s/it]Rendering progress - segmenting:  22%|██▏       | 25/114 [05:34<21:16, 14.34s/it]Rendering progress - segmenting:  23%|██▎       | 26/114 [05:48<21:11, 14.45s/it]Rendering progress - segmenting:  24%|██▎       | 27/114 [06:03<21:04, 14.53s/it]Rendering progress - segmenting:  25%|██▍       | 28/114 [06:18<20:54, 14.59s/it]Rendering progress - segmenting:  25%|██▌       | 29/114 [06:33<20:53, 14.74s/it]Rendering progress - segmenting:  26%|██▋       | 30/114 [06:48<20:48, 14.86s/it]Rendering progress - segmenting:  27%|██▋       | 31/114 [07:03<20:45, 15.01s/it]Rendering progress - segmenting:  28%|██▊       | 32/114 [07:19<20:41, 15.14s/it]Rendering progress - segmenting:  29%|██▉       | 33/114 [07:34<20:32, 15.22s/it]Rendering progress - segmenting:  30%|██▉       | 34/114 [07:50<20:27, 15.34s/it]Rendering progress - segmenting:  31%|███       | 35/114 [08:05<20:19, 15.44s/it]Rendering progress - segmenting:  32%|███▏      | 36/114 [08:21<20:13, 15.55s/it]Rendering progress - segmenting:  32%|███▏      | 37/114 [08:37<20:10, 15.73s/it]Rendering progress - segmenting:  33%|███▎      | 38/114 [08:54<20:07, 15.89s/it]Rendering progress - segmenting:  34%|███▍      | 39/114 [09:10<19:59, 16.00s/it]Rendering progress - segmenting:  35%|███▌      | 40/114 [09:26<19:47, 16.05s/it]Rendering progress - segmenting:  36%|███▌      | 41/114 [09:42<19:34, 16.09s/it]Rendering progress - segmenting:  37%|███▋      | 42/114 [09:59<19:27, 16.22s/it]Rendering progress - segmenting:  38%|███▊      | 43/114 [10:15<19:17, 16.30s/it]Rendering progress - segmenting:  39%|███▊      | 44/114 [10:32<19:08, 16.41s/it]Rendering progress - segmenting:  39%|███▉      | 45/114 [10:49<18:59, 16.52s/it]Rendering progress - segmenting:  40%|████      | 46/114 [11:06<18:51, 16.64s/it]Rendering progress - segmenting:  41%|████      | 47/114 [11:23<18:41, 16.74s/it]Rendering progress - segmenting:  42%|████▏     | 48/114 [11:40<18:33, 16.87s/it]Rendering progress - segmenting:  43%|████▎     | 49/114 [11:57<18:27, 17.04s/it]Rendering progress - segmenting:  44%|████▍     | 50/114 [12:15<18:16, 17.13s/it]Rendering progress - segmenting:  45%|████▍     | 51/114 [12:32<18:03, 17.20s/it]Rendering progress - segmenting:  46%|████▌     | 52/114 [12:49<17:52, 17.30s/it]Rendering progress - segmenting:  46%|████▋     | 53/114 [13:07<17:40, 17.38s/it]Rendering progress - segmenting:  47%|████▋     | 54/114 [13:25<17:29, 17.50s/it]Rendering progress - segmenting:  48%|████▊     | 55/114 [13:43<17:20, 17.63s/it]Rendering progress - segmenting:  49%|████▉     | 56/114 [14:01<17:09, 17.75s/it]Rendering progress - segmenting:  50%|█████     | 57/114 [14:19<16:58, 17.86s/it]Rendering progress - segmenting:  51%|█████     | 58/114 [14:37<16:46, 17.97s/it]Rendering progress - segmenting:  52%|█████▏    | 59/114 [14:55<16:31, 18.03s/it]Rendering progress - segmenting:  53%|█████▎    | 60/114 [15:14<16:21, 18.17s/it]Rendering progress - segmenting:  54%|█████▎    | 61/114 [15:32<16:09, 18.29s/it]Rendering progress - segmenting:  54%|█████▍    | 62/114 [15:51<15:57, 18.42s/it]Rendering progress - segmenting:  55%|█████▌    | 63/114 [16:10<15:45, 18.54s/it]Rendering progress - segmenting:  56%|█████▌    | 64/114 [16:29<15:32, 18.64s/it]Rendering progress - segmenting:  57%|█████▋    | 65/114 [16:48<15:17, 18.73s/it]Rendering progress - segmenting:  58%|█████▊    | 66/114 [17:07<15:05, 18.86s/it]Rendering progress - segmenting:  59%|█████▉    | 67/114 [17:26<14:50, 18.95s/it]Rendering progress - segmenting:  60%|█████▉    | 68/114 [17:45<14:37, 19.08s/it]Rendering progress - segmenting:  61%|██████    | 69/114 [18:05<14:28, 19.30s/it]Rendering progress - segmenting:  61%|██████▏   | 70/114 [18:25<14:12, 19.37s/it]Rendering progress - segmenting:  62%|██████▏   | 71/114 [18:44<13:55, 19.44s/it]Rendering progress - segmenting:  63%|██████▎   | 72/114 [19:04<13:40, 19.54s/it]Rendering progress - segmenting:  64%|██████▍   | 73/114 [19:24<13:24, 19.62s/it]Rendering progress - segmenting:  65%|██████▍   | 74/114 [19:44<13:10, 19.77s/it]Rendering progress - segmenting:  66%|██████▌   | 75/114 [20:04<12:55, 19.88s/it]Rendering progress - segmenting:  67%|██████▋   | 76/114 [20:24<12:39, 19.99s/it]Rendering progress - segmenting:  68%|██████▊   | 77/114 [20:45<12:22, 20.06s/it]Rendering progress - segmenting:  68%|██████▊   | 78/114 [21:05<12:07, 20.21s/it]Rendering progress - segmenting:  69%|██████▉   | 79/114 [21:26<11:50, 20.31s/it]Rendering progress - segmenting:  70%|███████   | 80/114 [21:47<11:36, 20.48s/it]Rendering progress - segmenting:  71%|███████   | 81/114 [22:07<11:18, 20.56s/it]Rendering progress - segmenting:  72%|███████▏  | 82/114 [22:28<11:00, 20.65s/it]Rendering progress - segmenting:  73%|███████▎  | 83/114 [22:49<10:41, 20.68s/it]Rendering progress - segmenting:  74%|███████▎  | 84/114 [23:10<10:25, 20.85s/it]Rendering progress - segmenting:  75%|███████▍  | 85/114 [23:32<10:11, 21.09s/it]Rendering progress - segmenting:  75%|███████▌  | 86/114 [23:53<09:53, 21.18s/it]Rendering progress - segmenting:  76%|███████▋  | 87/114 [24:15<09:34, 21.29s/it]Rendering progress - segmenting:  77%|███████▋  | 88/114 [24:36<09:15, 21.37s/it]Rendering progress - segmenting:  78%|███████▊  | 89/114 [24:58<08:57, 21.51s/it]Rendering progress - segmenting:  79%|███████▉  | 90/114 [25:20<08:40, 21.71s/it]Rendering progress - segmenting:  80%|███████▉  | 91/114 [25:42<08:20, 21.77s/it]Rendering progress - segmenting:  81%|████████  | 92/114 [26:05<08:01, 21.90s/it]Rendering progress - segmenting:  82%|████████▏ | 93/114 [26:27<07:42, 22.00s/it]Rendering progress - segmenting:  82%|████████▏ | 94/114 [26:49<07:23, 22.18s/it]Rendering progress - segmenting:  83%|████████▎ | 95/114 [27:12<07:05, 22.40s/it]Rendering progress - segmenting:  84%|████████▍ | 96/114 [27:35<06:44, 22.47s/it]Rendering progress - segmenting:  85%|████████▌ | 97/114 [27:58<06:23, 22.58s/it]Rendering progress - segmenting:  86%|████████▌ | 98/114 [28:21<06:02, 22.66s/it]Rendering progress - segmenting:  87%|████████▋ | 99/114 [28:44<05:41, 22.77s/it]Rendering progress - segmenting:  88%|████████▊ | 100/114 [29:07<05:19, 22.82s/it]Rendering progress - segmenting:  89%|████████▊ | 101/114 [29:30<04:58, 22.97s/it]Rendering progress - segmenting:  89%|████████▉ | 102/114 [29:53<04:36, 23.03s/it]Rendering progress - segmenting:  90%|█████████ | 103/114 [30:16<04:14, 23.10s/it]Rendering progress - segmenting:  91%|█████████ | 104/114 [30:40<03:52, 23.23s/it]Rendering progress - segmenting:  92%|█████████▏| 105/114 [31:03<03:29, 23.32s/it]Rendering progress - segmenting:  93%|█████████▎| 106/114 [31:27<03:08, 23.53s/it]Rendering progress - segmenting:  94%|█████████▍| 107/114 [31:51<02:44, 23.57s/it]Rendering progress - segmenting:  95%|█████████▍| 108/114 [32:15<02:21, 23.60s/it]Rendering progress - segmenting:  96%|█████████▌| 109/114 [32:39<01:58, 23.78s/it]Rendering progress - segmenting:  96%|█████████▋| 110/114 [33:03<01:35, 23.91s/it]Rendering progress - segmenting:  97%|█████████▋| 111/114 [33:28<01:12, 24.12s/it]Rendering progress - segmenting:  98%|█████████▊| 112/114 [33:52<00:48, 24.16s/it]Rendering progress - segmenting:  99%|█████████▉| 113/114 [34:16<00:24, 24.23s/it]Rendering progress - segmenting: 100%|██████████| 114/114 [34:41<00:00, 24.34s/it]Rendering progress - segmenting: 100%|██████████| 114/114 [34:41<00:00, 18.26s/it]
-Rendering progress - segmenting: 0it [00:00, ?it/s]Rendering progress - segmenting: 0it [00:00, ?it/s]
-/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
-  warnings.warn(
-/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
-  warnings.warn(msg)
-Downloading: "https://download.pytorch.org/models/vgg16-397923af.pth" to /cluster/home/mbressieux/.cache/torch/hub/checkpoints/vgg16-397923af.pth
-Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
-Traceback (most recent call last):
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 1348, in do_open
-    h.request(req.get_method(), req.selector, req.data, headers,
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 1286, in request
-    self._send_request(method, url, body, headers, encode_chunked)
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 1332, in _send_request
-    self.endheaders(body, encode_chunked=encode_chunked)
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 1281, in endheaders
-    self._send_output(message_body, encode_chunked=encode_chunked)
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 1041, in _send_output
-    self.send(msg)
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 979, in send
-    self.connect()
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 1451, in connect
-    super().connect()
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/http/client.py", line 945, in connect
-    self.sock = self._create_connection(
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/socket.py", line 851, in create_connection
-    raise exceptions[0]
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/socket.py", line 836, in create_connection
-    sock.connect(sa)
-OSError: [Errno 101] Network is unreachable
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/metrics.py", line 104, in <module>
-    lpips_fn = lpips.LPIPS(net='vgg').to(device)
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/lpips/lpips.py", line 84, in __init__
-    self.net = net_type(pretrained=not self.pnet_rand, requires_grad=self.pnet_tune)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/lpips/pretrained_networks.py", line 99, in __init__
-    vgg_pretrained_features = tv.vgg16(pretrained=pretrained).features
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/_utils.py", line 142, in wrapper
-    return fn(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/_utils.py", line 228, in inner_wrapper
-    return builder(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/vgg.py", line 433, in vgg16
-    return _vgg("D", False, weights, progress, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/vgg.py", line 105, in _vgg
-    model.load_state_dict(weights.get_state_dict(progress=progress, check_hash=True))
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torchvision/models/_api.py", line 90, in get_state_dict
-    return load_state_dict_from_url(self.url, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torch/hub.py", line 760, in load_state_dict_from_url
-    download_url_to_file(url, cached_file, hash_prefix, progress=progress)
-  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torch/hub.py", line 622, in download_url_to_file
-    u = urlopen(req)
-        ^^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 216, in urlopen
-    return opener.open(url, data, timeout)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 519, in open
-    response = self._open(req, data)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 536, in _open
-    result = self._call_chain(self.handle_open, protocol, protocol +
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 496, in _call_chain
-    result = func(*args)
-             ^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 1391, in https_open
-    return self.do_open(http.client.HTTPSConnection, req,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/python-3.11.6-ukhwpjnwzzzizek3pgr75zkbhxros5fq/lib/python3.11/urllib/request.py", line 1351, in do_open
-    raise URLError(err)
-urllib.error.URLError: <urlopen error [Errno 101] Network is unreachable>

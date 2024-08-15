@@ -1,8 +1,0 @@
-/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torch/cuda/__init__.py:619: UserWarning: Can't initialize NVML
-  warnings.warn("Can't initialize NVML")
-Traceback (most recent call last):
-  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/render.py", line 17, in <module>
-    from gaussian_renderer import render
-  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/gaussian_renderer/__init__.py", line 29, in <module>
-    from sklearn.cluster import MeanShift
-ModuleNotFoundError: No module named 'sklearn'
