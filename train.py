@@ -41,11 +41,6 @@ try:
 except ImportError:
     TENSORBOARD_FOUND = False
 
-seed(42)
-torch.manual_seed(42)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(42)
-
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations):
     flag_pdb = False
@@ -73,11 +68,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
     smooth_term = get_linear_noise_func(
         lr_init=0.1, lr_final=1e-15, lr_delay_mult=0.01, max_steps=20000
     )
-
-    """# remove any file starting with fid, d_xyz or means3D and ending with .npy
-    os.system("rm " + args.model_path + "/fid*.npy")
-    os.system("rm " + args.model_path + "/d_xyz*.npy")
-    os.system("rm " + args.model_path + "/means3D*.npy")"""
 
     name_iter = None
 
@@ -137,6 +127,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
         with torch.no_grad():
             if iteration in args.dynamic_seg_iterations:
+                # Dynamic Masking Split
 
                 all_d_xyz, all_d_scalings, all_d_rotations = create_all_d(
                     deform, gaussians_dyn.get_xyz, scene
@@ -177,14 +168,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
                 gaussians_dyn.prune_points(~mask)
 
-                """rigid_object = identify_rigid_object(
-                    gaussians_dyn.get_xyz, all_d_xyz[:, mask], args.model_path
-                )"""
-
                 flag_pdb = True
 
             rigid_object = None
             if iteration in args.rigid_object_iterations:
+                # Identify the rigid object (not used during training but for later visualization)
                 all_d_xyz, all_d_scalings, all_d_rotations = create_all_d(
                     deform, gaussians_dyn.get_xyz, scene
                 )
@@ -316,10 +304,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             )
         else:
             # New loss term to keep d_xyz close to zero using L1 loss
-
-            """d_xyz_0, d_scaling_0, d_rotation_0 = get_first_d(
-                deform, gaussians_dyn.get_xyz, scene
-            )"""
 
             Ldxyz = torch.mean(torch.abs(d_xyz))  # L1 loss for d_xyz
 
@@ -670,7 +654,7 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=list(range(5_001, 9_001, 1000)),
+        default=list(range(6_001, 14_001, 2000)),
     )
     parser.add_argument(
         "--rigid_object_iterations",
