@@ -11,7 +11,9 @@ Novel things:
 Most of the new code is in DSU_utils. The threshold hyperparameters are hardcoded there.
 
 The number of splits and the iteration at which they happen must be specified as an argument (--dynamic_seg_iterations in train.py)
+
 I added 100 intermediate renderings for full images and also static/dynamic seg (--render_intermediate to specify the wanted iterations in train.py, be careful of densification as it happens for 100 iterations)
+
 RANSAC algo can be executed and its rigid object detection will be saved in "inliers.npy" (--rigid_object_iterations)
 
 
