@@ -488,7 +488,8 @@ def readNerfiesCameras(path):
     else:  # for hypernerf
         print(f"Working on chickchicken's like dataset")
         train_img = dataset_json["ids"][::4]
-        all_img = train_img
+        val_img = dataset_json["ids"][2::4]
+        all_img = train_img + val_img
         ratio = 0.5
     """else:
         train_img = dataset_json["train_ids"]

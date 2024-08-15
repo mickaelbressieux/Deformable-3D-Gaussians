@@ -670,13 +670,13 @@ if __name__ == "__main__":
         "--dynamic_seg_iterations",
         nargs="+",
         type=int,
-        default=list(range(10_001, 15_001, 1000)),
+        default=list(range(5_001, 9_001, 1000)),
     )
     parser.add_argument(
         "--rigid_object_iterations",
         nargs="+",
         type=int,
-        default=list(range(5000, 40001, 3000)),
+        default=[],
     )
     parser.add_argument("--save_npy", nargs="+", type=int, default=[])
 

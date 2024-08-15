@@ -1,0 +1,16 @@
+Looking for config file in /cluster/project/hilliges/mbressieux/log/cup_novel_view_low_l1/cfg_args
+Config file found: /cluster/project/hilliges/mbressieux/log/cup_novel_view_low_l1/cfg_args
+Rendering /cluster/project/hilliges/mbressieux/log/cup_novel_view_low_l1
+Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/render.py", line 1087, in <module>
+    render_sets(
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/render.py", line 994, in render_sets
+    scene = Scene(
+            ^^^^^^
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/scene/__init__.py", line 47, in __init__
+    self.loaded_iter = searchForMaxIteration(
+                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/utils/system_utils.py", line 29, in searchForMaxIteration
+    saved_iters = [int(fname.split("_")[-1]) for fname in os.listdir(folder)]
+                                                          ^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/cluster/project/hilliges/mbressieux/log/cup_novel_view_low_l1/point_cloud'

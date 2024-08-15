@@ -1,0 +1,22 @@
+/var/spool/slurm/slurmd/state/job4956767/slurm_script: line 8: workon: command not found
+Optimizing /cluster/project/hilliges/mbressieux/log/EK_Capstone/P03_03_Clip_nerfied_capstone
+Output folder: /cluster/project/hilliges/mbressieux/log/EK_Capstone/P03_03_Clip_nerfied_capstone [15/08 12:06:05]
+Reading camera 1/3494Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/train.py", line 696, in <module>
+    training(
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/train.py", line 58, in training
+    scene = Scene(dataset, gaussians_dyn, gaussians_stat)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/scene/__init__.py", line 58, in __init__
+    scene_info = sceneLoadTypeCallbacks["Colmap"](
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/scene/dataset_readers.py", line 214, in readColmapSceneInfo
+    cam_infos_unsorted = readColmapCameras(
+                         ^^^^^^^^^^^^^^^^^^
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/scene/dataset_readers.py", line 145, in readColmapCameras
+    image = Image.open(image_path)
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/PIL/Image.py", line 3431, in open
+    fp = builtins.open(filename, "rb")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/cluster/project/hilliges/mbressieux/data/EK_Capstone/NeRF/P03_03_Clip_nerfied/images/frame_0000002614.png'

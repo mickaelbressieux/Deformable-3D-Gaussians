@@ -1,0 +1,12 @@
+/var/spool/slurm/slurmd/state/job4558598/slurm_script: line 8: workon: command not found
+Optimizing /cluster/project/hilliges/mbressieux/log/cup_novel_view_low_l1
+Traceback (most recent call last):
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/train.py", line 691, in <module>
+    safe_state(args.quiet)
+  File "/cluster/home/mbressieux/network_DSU/Deformable-3D-Gaussians/utils/general_utils.py", line 188, in safe_state
+    torch.cuda.set_device(torch.device("cuda:0"))
+  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torch/cuda/__init__.py", line 399, in set_device
+    torch._C._cuda_setDevice(device)
+  File "/cluster/project/hilliges/mbressieux/.virtualenvs/Def3DGS/lib/python3.11/site-packages/torch/cuda/__init__.py", line 293, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: No CUDA GPUs are available

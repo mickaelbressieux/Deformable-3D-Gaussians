@@ -8,6 +8,6 @@
 workon Def3DGS
 
 DATA_DIR=/cluster/project/hilliges/mbressieux/data/chickchicken
-LOG=/cluster/project/hilliges/mbressieux/log/CapstoneProj/chickchicken
+LOG=/cluster/project/hilliges/mbressieux/log/CapstoneProj/chickchicken_2
 
 python train.py -s ${DATA_DIR} -m ${LOG} --eval --iterations 20000

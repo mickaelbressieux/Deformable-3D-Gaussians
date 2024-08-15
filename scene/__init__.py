@@ -54,7 +54,10 @@ class Scene:
         self.train_cameras = {}
         self.test_cameras = {}
 
-        if os.path.exists(os.path.join(args.source_path, "sparse")):
+        if os.path.exists(os.path.join(args.source_path, "dataset.json")):
+            print("Found dataset.json file, assuming Nerfies data set!")
+            scene_info = sceneLoadTypeCallbacks["nerfies"](args.source_path, args.eval)
+        elif os.path.exists(os.path.join(args.source_path, "sparse")):
             scene_info = sceneLoadTypeCallbacks["Colmap"](
                 args.source_path, args.images, args.eval
             )
@@ -68,9 +71,6 @@ class Scene:
             scene_info = sceneLoadTypeCallbacks["DTU"](
                 args.source_path, "cameras_sphere.npz", "cameras_sphere.npz"
             )
-        elif os.path.exists(os.path.join(args.source_path, "dataset.json")):
-            print("Found dataset.json file, assuming Nerfies data set!")
-            scene_info = sceneLoadTypeCallbacks["nerfies"](args.source_path, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "poses_bounds.npy")):
             print("Found calibration_full.json, assuming Neu3D data set!")
             scene_info = sceneLoadTypeCallbacks["plenopticVideo"](

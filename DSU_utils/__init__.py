@@ -14,8 +14,8 @@ def create_dynamic_mask(
     nb_gaussians_stat: int,
     nb_clusters: int = 2,
     type: str = "threshold",
-    threshold_d_xyz: float = 0.01,
-    threshold_d_scalings: float = 0.01,
+    threshold_d_xyz: float = 0.1,
+    threshold_d_scalings: float = 0.025,
 ) -> torch.Tensor:
     """
     Create a dynamic mask based on the total distance travelled by each gaussians
